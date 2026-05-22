@@ -357,6 +357,10 @@ Publishing is driven by `.github/workflows/publish.yml`:
 - **Manual** via `gh workflow run publish.yml` — defaults to `dry_run=true`
   (builds without pushing). Set `dry_run=false` to publish a one-off tag.
 
+Maintainers: see **`CONTRIBUTING.md` § *Cutting a release*** for the
+end-to-end checklist (versioning, CHANGELOG promotion, tag, dry-run,
+verify, rollback).
+
 Per-case images (`dotnet-autopsy/sos`, etc.) remain a `docker build`-on-
 demand model. If you have a hosted use case for a *dump-less* per-case
 image variant (e.g. a public hands-on tutorial), open an issue — the
