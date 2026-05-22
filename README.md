@@ -4,6 +4,7 @@
 [![Rot-check](https://github.com/JanusMael/dotnet-autopsy/actions/workflows/rot-check.yml/badge.svg)](https://github.com/JanusMael/dotnet-autopsy/actions/workflows/rot-check.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Base image](https://ghcr-badge.egpl.dev/janusmael/dotnet-autopsy-base/latest_tag?label=base)](https://github.com/JanusMael/dotnet-autopsy/pkgs/container/dotnet-autopsy-base)
+[![Sponsor](https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://github.com/sponsors/JanusMael)
 
 A family of self-contained Docker images that each bake in a captured .NET
 diagnostic artifact, run an automated analysis at build time, then stay alive
@@ -363,6 +364,10 @@ publish workflow has the building blocks (multi-arch + cosign + SBOM) and
 adding an opt-in per-case job is a small follow-up.
 
 ---
+
+> If you find this tool useful, I accept tips / donations:
+>
+> ❤️ ~B [![Sponsor](https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://github.com/sponsors/JanusMael)
 
 ## References
 
