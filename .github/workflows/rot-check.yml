@@ -1,0 +1,489 @@
+name: Rot check — toolchain & end-to-end
+
+# Runs weekly and on PRs that touch the build.
+# Purpose: catch toolchain/base-image/apt/NuGet/symbol-server rot BEFORE
+# it becomes a problem during an actual incident.
+# The build uses NO version pins ("newest") by design — that is exactly what
+# we want to test here.
+
+on:
+  schedule:
+    # Every Monday at 06:00 UTC
+    - cron: '0 6 * * 1'
+  push:
+    paths:
+      - 'common/**'
+      - 'sos/**'
+      - 'trace/**'
+      - 'gcdump/**'
+      - 'build.sh'
+      - 'build.ps1'
+      - 'demo.sh'
+      - 'smoke.sh'
+      - 'docker-compose.yml'
+      - '.github/workflows/rot-check.yml'
+  pull_request:
+    paths:
+      - 'common/**'
+      - 'sos/**'
+      - 'trace/**'
+      - 'gcdump/**'
+      - 'build.sh'
+      - 'build.ps1'
+      - 'demo.sh'
+      - 'smoke.sh'
+      - 'docker-compose.yml'
+      - '.github/workflows/rot-check.yml'
+  workflow_dispatch:
+    inputs:
+      dump_arch:
+        description: 'Dump architecture (amd64 or arm64)'
+        required: false
+        default: 'amd64'
+
+jobs:
+  rot-check:
+    name: ${{ matrix.arch }} end-to-end
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Primary: linux/amd64 (most production dumps are x64; native on runners)
+          - arch: amd64
+            required: true
+          # Secondary: linux/arm64 (Graviton/ARM prod). Informational — allowed to fail
+          # because GitHub's ubuntu-latest runners use QEMU for arm64 and are slow.
+          - arch: arm64
+            required: false
+
+    continue-on-error: ${{ !matrix.required }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU (for arm64 cross-build on x64 runner)
+        if: matrix.arch == 'arm64'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Generate throwaway crash dump
+        # Create a trivial .NET app that crashes with FailFast so we get a real
+        # managed dump without committing any sensitive data to the repo.
+        run: |
+          SDK_MAJOR=$(dotnet --version | cut -d. -f1)
+          mkdir -p /tmp/smokeapp/crashapp
+
+          cat > /tmp/smokeapp/crashapp/crashapp.csproj <<EOF
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup>
+              <OutputType>Exe</OutputType>
+              <TargetFramework>net${SDK_MAJOR}.0</TargetFramework>
+            </PropertyGroup>
+          </Project>
+          EOF
+
+          echo 'System.Environment.FailFast("rot-check-crash");' \
+              > /tmp/smokeapp/crashapp/Program.cs
+
+          DOTNET_DbgEnableMiniDump=1 \
+          DOTNET_DbgMiniDumpName=${{ github.workspace }}/core.dump \
+          DOTNET_DbgMiniDumpType=4 \
+              dotnet run --project /tmp/smokeapp/crashapp 2>/dev/null || true
+
+          if [ ! -f "${{ github.workspace }}/core.dump" ]; then
+            echo "ERROR: dump not created by FailFast"
+            exit 1
+          fi
+          echo "Dump created: $(stat -c%s "${{ github.workspace }}/core.dump") bytes"
+
+      - name: Build image (SMOKE_TEST=1, no pins)
+        run: |
+          docker build \
+            --platform linux/${{ matrix.arch }} \
+            -f common/base.dockerfile \
+            -t dotnet-autopsy-base \
+            --build-arg DUMP_ARCH=${{ matrix.arch }} \
+            --progress=plain \
+            .
+          docker build \
+            --platform linux/${{ matrix.arch }} \
+            -f sos/dotnet-sos.dockerfile \
+            -t dotnet-autopsy-sos-rot-check \
+            --build-arg DUMP_ARCH=${{ matrix.arch }} \
+            --build-arg SMOKE_TEST=1 \
+            --build-arg DUMP_FILE=core.dump \
+            --progress=plain \
+            .
+
+      - name: Start container
+        run: |
+          docker run -d \
+            --platform linux/${{ matrix.arch }} \
+            --name dotnet-autopsy-sos-rot-check \
+            -p "127.0.0.1:5550:5550" \
+            dotnet-autopsy-sos-rot-check
+
+          # Wait for file server
+          for i in $(seq 1 30); do
+            docker exec dotnet-autopsy-sos-rot-check curl -sf http://localhost:5550/ \
+                >/dev/null 2>&1 && echo "File server ready." && break
+            [ "$i" -eq 30 ] && echo "ERROR: server did not start" && exit 1
+            sleep 3
+          done
+
+      - name: Check analysis output
+        run: |
+          # analysis.txt must exist and contain useful content
+          docker exec dotnet-autopsy-sos-rot-check bash -c \
+            'test -s /analysis/analysis.txt || (echo "ERROR: analysis.txt empty"; exit 1)'
+          # analysis.md (rendered view) must also be generated and non-empty
+          # (additive check — does NOT gate status; status stays on .txt/json)
+          docker exec dotnet-autopsy-sos-rot-check bash -c \
+            'test -s /analysis/analysis.md || (echo "ERROR: analysis.md empty"; exit 1)'
+          # status must be success or partial (not failed)
+          STATUS=$(docker exec dotnet-autopsy-sos-rot-check \
+            json-get /analysis/status.json status \
+            2>/dev/null || echo "unknown")
+          echo "Analysis status: ${STATUS}"
+          [ "${STATUS}" = "failed" ] && echo "ERROR: analysis status=failed" && exit 1
+          # HTTP check
+          HTTP=$(curl -sL -o /dev/null -w "%{http_code}" http://127.0.0.1:5550/)
+          echo "HTTP status: ${HTTP}"
+          echo "${HTTP}" | grep -qE "^[23]" || (echo "ERROR: unexpected HTTP status" && exit 1)
+          # PowerShell (pwsh) must run — catches PowerShell-package / runtime rot
+          PWSH=$(docker exec dotnet-autopsy-sos-rot-check pwsh -NoProfile -NonInteractive \
+            -Command '$PSVersionTable.PSVersion.ToString()' 2>&1 || echo "FAILED")
+          echo "pwsh version: ${PWSH}"
+          echo "${PWSH}" | grep -qE "^[0-9]+\." || (echo "ERROR: pwsh not working" && exit 1)
+
+      - name: Print triage summary (for visibility in CI log)
+        if: always()
+        run: |
+          docker exec dotnet-autopsy-sos-rot-check head -60 /analysis/analysis.txt 2>/dev/null || true
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f dotnet-autopsy-sos-rot-check 2>/dev/null || true
+          docker rmi -f dotnet-autopsy-sos-rot-check 2>/dev/null || true
+
+  trace-rot-check:
+    name: trace ${{ matrix.arch }} end-to-end
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            required: true
+          - arch: arm64
+            required: false
+
+    continue-on-error: ${{ !matrix.required }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU (for arm64 cross-build on x64 runner)
+        if: matrix.arch == 'arm64'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Generate throwaway .nettrace
+        # Tool-install dotnet-trace in the runner, build a tiny CPU/alloc
+        # workload, `collect` until exit. Lands at ${{ github.workspace }}
+        # because the trace dockerfile's COPY uses repo-root context.
+        run: |
+          export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
+          dotnet tool install -g dotnet-trace >/dev/null
+          export PATH="$HOME/.dotnet/tools:$PATH"
+          SDK_MAJOR=$(dotnet --version | cut -d. -f1)
+          mkdir -p /tmp/perfapp
+          cat > /tmp/perfapp/perfapp.csproj <<EOF
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup>
+              <OutputType>Exe</OutputType>
+              <TargetFramework>net${SDK_MAJOR}.0</TargetFramework>
+            </PropertyGroup>
+          </Project>
+          EOF
+          printf 'long a=0; for(int i=0;i<80000000;i++){a+=i%%7;} System.Console.WriteLine(a);\n' \
+              > /tmp/perfapp/Program.cs
+          dotnet build -c Release -o /tmp/perfapp/bin /tmp/perfapp >/dev/null
+          dotnet-trace collect --format nettrace \
+              -o ${{ github.workspace }}/trace.nettrace \
+              -- /tmp/perfapp/bin/perfapp 2>/dev/null || true
+          if [ ! -s "${{ github.workspace }}/trace.nettrace" ]; then
+            echo "ERROR: nettrace not created"; exit 1
+          fi
+          echo "Trace: $(stat -c%s ${{ github.workspace }}/trace.nettrace) bytes"
+
+      - name: Build trace image (SMOKE_TEST=1, no pins)
+        run: |
+          docker build \
+            --platform linux/${{ matrix.arch }} \
+            -f common/base.dockerfile \
+            -t dotnet-autopsy-base \
+            --build-arg DUMP_ARCH=${{ matrix.arch }} \
+            --progress=plain \
+            .
+          docker build \
+            --platform linux/${{ matrix.arch }} \
+            -f trace/dotnet-trace.dockerfile \
+            -t dotnet-autopsy-trace-rot-check \
+            --build-arg DUMP_ARCH=${{ matrix.arch }} \
+            --build-arg SMOKE_TEST=1 \
+            --build-arg TRACE_FILE=trace.nettrace \
+            --progress=plain \
+            .
+
+      - name: Start container
+        run: |
+          docker run -d \
+            --platform linux/${{ matrix.arch }} \
+            --name dotnet-autopsy-trace-rot-check \
+            -p "127.0.0.1:5550:5550" \
+            dotnet-autopsy-trace-rot-check
+          for i in $(seq 1 30); do
+            docker exec dotnet-autopsy-trace-rot-check curl -sf http://localhost:5550/ \
+                >/dev/null 2>&1 && echo "File server ready." && break
+            [ "$i" -eq 30 ] && echo "ERROR: server did not start" && exit 1
+            sleep 3
+          done
+
+      - name: Check trace analysis output
+        run: |
+          docker exec dotnet-autopsy-trace-rot-check bash -c \
+            'test -s /analysis/analysis.txt || (echo "ERROR: analysis.txt empty"; exit 1)'
+          docker exec dotnet-autopsy-trace-rot-check bash -c \
+            'test -s /analysis/analysis.md || (echo "ERROR: analysis.md empty"; exit 1)'
+          # Trace-specific assertion: TOP CPU FUNCTIONS section + parsed rows
+          docker exec dotnet-autopsy-trace-rot-check bash -c '
+            grep -q "TOP CPU FUNCTIONS" /analysis/analysis.txt \
+                || (echo "ERROR: TOP CPU FUNCTIONS section missing"; exit 1)
+            grep -qE "^[[:space:]]+[0-9]+\.[[:space:]]+\S.*incl=" /analysis/analysis.txt \
+                || (echo "ERROR: no TOP CPU rows parsed"; exit 1)
+          '
+          STATUS=$(docker exec dotnet-autopsy-trace-rot-check \
+            json-get /analysis/status.json status 2>/dev/null || echo "unknown")
+          echo "Analysis status: ${STATUS}"
+          [ "${STATUS}" = "failed" ] && echo "ERROR: analysis status=failed" && exit 1
+          HTTP=$(curl -sL -o /dev/null -w "%{http_code}" http://127.0.0.1:5550/)
+          echo "HTTP status: ${HTTP}"
+          echo "${HTTP}" | grep -qE "^[23]" || (echo "ERROR: unexpected HTTP status" && exit 1)
+          PWSH=$(docker exec dotnet-autopsy-trace-rot-check pwsh -NoProfile -NonInteractive \
+            -Command '$PSVersionTable.PSVersion.ToString()' 2>&1 || echo "FAILED")
+          echo "pwsh version: ${PWSH}"
+          echo "${PWSH}" | grep -qE "^[0-9]+\." || (echo "ERROR: pwsh not working" && exit 1)
+
+      - name: Print trace triage summary (for visibility in CI log)
+        if: always()
+        run: |
+          docker exec dotnet-autopsy-trace-rot-check head -60 /analysis/analysis.txt 2>/dev/null || true
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f dotnet-autopsy-trace-rot-check 2>/dev/null || true
+          docker rmi -f dotnet-autopsy-trace-rot-check 2>/dev/null || true
+
+  gcdump-rot-check:
+    name: gcdump ${{ matrix.arch }} end-to-end
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            required: true
+          - arch: arm64
+            required: false
+
+    continue-on-error: ${{ !matrix.required }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU (for arm64 cross-build on x64 runner)
+        if: matrix.arch == 'arm64'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Generate throwaway .gcdump
+        # Tool-install dotnet-gcdump on the runner, run a tiny allocating
+        # workload that idles long enough for `collect` to attach. The
+        # .gcdump lands at ${{ github.workspace }} because the gcdump
+        # dockerfile's COPY uses repo-root context.
+        run: |
+          export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
+          dotnet tool install -g dotnet-gcdump >/dev/null
+          export PATH="$HOME/.dotnet/tools:$PATH"
+          SDK_MAJOR=$(dotnet --version | cut -d. -f1)
+          mkdir -p /tmp/heapapp
+          cat > /tmp/heapapp/heapapp.csproj <<EOF
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup>
+              <OutputType>Exe</OutputType>
+              <TargetFramework>net${SDK_MAJOR}.0</TargetFramework>
+            </PropertyGroup>
+          </Project>
+          EOF
+          cat > /tmp/heapapp/Program.cs <<'CS'
+          // Static fields (declared after top-level statements per C#
+          // top-level program rules) keep the workload heap rooted across
+          // Thread.Sleep — JIT can otherwise drop Main-local refs after
+          // last read, GC frees them, and dotnet-gcdump captures only the
+          // startup heap.
+          using System.Collections.Generic;
+          using System.Threading;
+          for (int i = 0; i < 5000; i++) {
+              Roots.Strs.Add("hello_" + i);
+              Roots.Bufs.Add(new byte[4096]);
+              Roots.Map[i] = "value_" + i;
+          }
+          System.Console.WriteLine("heapapp ready " + Roots.Strs.Count);
+          Thread.Sleep(30000);
+
+          static class Roots
+          {
+              public static List<string>            Strs = new();
+              public static List<byte[]>            Bufs = new();
+              public static Dictionary<int,string>  Map  = new();
+          }
+          CS
+          dotnet build -c Release -o /tmp/heapapp/bin /tmp/heapapp >/dev/null
+          /tmp/heapapp/bin/heapapp &
+          APP_PID=$!
+          # 8 s margin for cold-runner startup + JIT + alloc loop.
+          sleep 8
+          dotnet-gcdump collect -p $APP_PID \
+              -o ${{ github.workspace }}/heap.gcdump 2>/dev/null || true
+          kill -9 $APP_PID 2>/dev/null || true; wait 2>/dev/null || true
+          if [ ! -s "${{ github.workspace }}/heap.gcdump" ]; then
+            echo "ERROR: gcdump not created"; exit 1
+          fi
+          echo "Gcdump: $(stat -c%s ${{ github.workspace }}/heap.gcdump) bytes"
+
+      - name: Build gcdump image (SMOKE_TEST=1, no pins)
+        run: |
+          docker build \
+            --platform linux/${{ matrix.arch }} \
+            -f common/base.dockerfile \
+            -t dotnet-autopsy-base \
+            --build-arg DUMP_ARCH=${{ matrix.arch }} \
+            --progress=plain \
+            .
+          docker build \
+            --platform linux/${{ matrix.arch }} \
+            -f gcdump/dotnet-gcdump.dockerfile \
+            -t dotnet-autopsy-gcdump-rot-check \
+            --build-arg DUMP_ARCH=${{ matrix.arch }} \
+            --build-arg SMOKE_TEST=1 \
+            --build-arg GCDUMP_FILE=heap.gcdump \
+            --progress=plain \
+            .
+
+      - name: Start container
+        run: |
+          docker run -d \
+            --platform linux/${{ matrix.arch }} \
+            --name dotnet-autopsy-gcdump-rot-check \
+            -p "127.0.0.1:5550:5550" \
+            dotnet-autopsy-gcdump-rot-check
+          for i in $(seq 1 30); do
+            docker exec dotnet-autopsy-gcdump-rot-check curl -sf http://localhost:5550/ \
+                >/dev/null 2>&1 && echo "File server ready." && break
+            [ "$i" -eq 30 ] && echo "ERROR: server did not start" && exit 1
+            sleep 3
+          done
+
+      - name: Check gcdump analysis output
+        run: |
+          docker exec dotnet-autopsy-gcdump-rot-check bash -c \
+            'test -s /analysis/analysis.txt || (echo "ERROR: analysis.txt empty"; exit 1)'
+          docker exec dotnet-autopsy-gcdump-rot-check bash -c \
+            'test -s /analysis/analysis.md || (echo "ERROR: analysis.md empty"; exit 1)'
+          # Gcdump-specific assertion: TOP TYPES BY SIZE section + parsed rows
+          docker exec dotnet-autopsy-gcdump-rot-check bash -c '
+            grep -q "TOP TYPES BY SIZE" /analysis/analysis.txt \
+                || (echo "ERROR: TOP TYPES BY SIZE section missing"; exit 1)
+            grep -qE "^[[:space:]]+[0-9]+\.[[:space:]]+\S.*bytes=" /analysis/analysis.txt \
+                || (echo "ERROR: no TOP TYPES rows parsed"; exit 1)
+          '
+          STATUS=$(docker exec dotnet-autopsy-gcdump-rot-check \
+            json-get /analysis/status.json status 2>/dev/null || echo "unknown")
+          echo "Analysis status: ${STATUS}"
+          [ "${STATUS}" = "failed" ] && echo "ERROR: analysis status=failed" && exit 1
+          HTTP=$(curl -sL -o /dev/null -w "%{http_code}" http://127.0.0.1:5550/)
+          echo "HTTP status: ${HTTP}"
+          echo "${HTTP}" | grep -qE "^[23]" || (echo "ERROR: unexpected HTTP status" && exit 1)
+          PWSH=$(docker exec dotnet-autopsy-gcdump-rot-check pwsh -NoProfile -NonInteractive \
+            -Command '$PSVersionTable.PSVersion.ToString()' 2>&1 || echo "FAILED")
+          echo "pwsh version: ${PWSH}"
+          echo "${PWSH}" | grep -qE "^[0-9]+\." || (echo "ERROR: pwsh not working" && exit 1)
+
+      - name: Print gcdump triage summary (for visibility in CI log)
+        if: always()
+        run: |
+          docker exec dotnet-autopsy-gcdump-rot-check head -60 /analysis/analysis.txt 2>/dev/null || true
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f dotnet-autopsy-gcdump-rot-check 2>/dev/null || true
+          docker rmi -f dotnet-autopsy-gcdump-rot-check 2>/dev/null || true
+
+  parity:
+    name: report parity (golden regression)
+    runs-on: ubuntu-latest
+    # The .py oracle was removed at sign-off; run-parity.sh auto-runs in
+    # GOLDEN mode — it builds the shared (common/) + per-image .cs report
+    # tools and `cmp`s their output against <image>/parity/golden/*.
+    # Catches any .cs regression. No Docker, no Python; setup-dotnet
+    # supplies the .NET 10 SDK the harness publishes with.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Report parity gate — sos (byte-identical vs golden, or fail)
+        run: bash common/parity/run-parity.sh sos
+
+      - name: Report parity gate — trace (skipped until trace goldens land)
+        run: |
+          if [ -d trace/parity/golden ] && [ -n "$(ls -A trace/parity/golden 2>/dev/null)" ]; then
+            bash common/parity/run-parity.sh trace
+          else
+            echo "trace/parity/golden not present yet — skipping (Phase B.12 generates goldens)."
+          fi
+
+      - name: Report parity gate — gcdump (skipped until gcdump goldens land)
+        run: |
+          if [ -d gcdump/parity/golden ] && [ -n "$(ls -A gcdump/parity/golden 2>/dev/null)" ]; then
+            bash common/parity/run-parity.sh gcdump
+          else
+            echo "gcdump/parity/golden not present yet — skipping (Phase F seeds goldens)."
+          fi

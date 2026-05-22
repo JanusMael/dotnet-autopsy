@@ -1,0 +1,11 @@
+{
+  "status": "success",
+  "dump_file": "/analysis/demo-heap.gcdump",
+  "dump_arch": "x86_64",
+  "container_arch": "x86_64",
+  "arch_match": true,
+  "dump_fidelity": "full-or-triage",
+  "runtime_version": "unknown",
+  "dac_source": "n/a (gcdump)",
+  "analysis_timestamp": "2026-05-21T18:56:05Z"
+}

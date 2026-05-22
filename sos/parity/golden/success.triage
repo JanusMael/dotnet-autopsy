@@ -1,0 +1,96 @@
+╔══════════════════════════════════════════════════════════╗
+║          DOTNET-SOS  AUTO-TRIAGE  SUMMARY               ║
+╚══════════════════════════════════════════════════════════╝
+  Runtime      : 10.0.8
+  Dump arch    : x86_64
+  Dump fidelity: full-or-triage
+  DAC source   : microsoft_symbol_server
+  Build time   : 2026-05-18T00:23:11Z
+
+────────────────────────────────────────────────────────────
+  TOP EXCEPTION
+────────────────────────────────────────────────────────────
+  Type    : System.ExecutionEngineException  [000076ad6ac00178]
+  Message : (none)
+  ── inner #1: System.InvalidOperationException  [000076ad6aebbe88]  (likely root cause)
+     Message : simulated failure for the dotnet-sos demo dump
+
+
+────────────────────────────────────────────────────────────
+  FAULTING THREAD (clrthreads)
+────────────────────────────────────────────────────────────
+0    1       72 00005723823484B0    20020 Preemptive  000076AD6AEC2750:000076AD6AEC2FF0 0000572382314B50 -00001 Ukn System.ExecutionEngineException 000076ad6ac00178
+
+
+────────────────────────────────────────────────────────────
+  FAULTING & USER-CODE CALL STACKS
+────────────────────────────────────────────────────────────
+  ── Thread OSID 0x72  [FAULTING THREAD] ──
+OS Thread Id: 0x72
+        Child SP               IP Call Site
+00007FFEAC273000 000076bc9d6bf813 [InlinedCallFrame: 00007ffeac273000] 
+00007FFEAC273000 000076bc1dfaccae [InlinedCallFrame: 00007ffeac273000] 
+00007FFEAC272FE0 000076BC1DFACCAE System.Environment.FailFast(System.Runtime.CompilerServices.StackCrawlMarkHandle, System.String, System.Runtime.CompilerServices.ObjectHandleOnStack, System.String) [/_/src/runtime/artifacts/obj/coreclr/System.Private.CoreLib/linux.x64.Release/generated/Microsoft.Interop.LibraryImportGenerator/Microsoft.Interop.LibraryImportGenerator/LibraryImports.g.cs @ 399]
+00007FFEAC2730A0 000076BC1DFACC2F System.Environment.FailFast(System.Threading.StackCrawlMark ByRef, System.String, System.Exception, System.String) [/_/src/runtime/src/coreclr/System.Private.CoreLib/src/System/Environment.CoreCLR.cs @ 83]
+00007FFEAC2730B0 000076BC1DFACBE0 System.Environment.FailFast(System.String, System.Exception) [/_/src/runtime/src/coreclr/System.Private.CoreLib/src/System/Environment.CoreCLR.cs @ 67]
+00007FFEAC2730C0 000076BC1EE91C11 Program.<Main>$(System.String[])
+00007FFEAC275E80 000076bc9d3e23ce [SoftwareExceptionFrame: 00007ffeac275e80] 
+00007FFEAC276C80 000076BC1EE91BDE Program.<Main>$(System.String[])
+
+  ── Thread OSID 0x79  [running user code] ──
+OS Thread Id: 0x79
+        Child SP               IP Call Site
+000076BC98489AE0 000076bc9d647d71 [InlinedCallFrame: 000076bc98489ae0] 
+000076BC98489AE0 000076bc1e0aabb1 [InlinedCallFrame: 000076bc98489ae0] 
+000076BC98489AD0 000076BC1E0AABB1 System.Threading.Thread.Sleep(Int32) [/_/src/runtime/src/libraries/System.Private.CoreLib/src/System/Threading/Thread.cs @ 381]
+000076BC98489B70 000076BC1EE924F7 Program+<>c.<<Main>$>b__0_0()
+000076BC98489B90 000076BC1E0A9B16 System.Threading.Thread.StartCallback()
+000076BC98489D30 000076bc9d3e248c [DebuggerU2MCatchHandlerFrame: 000076bc98489d30] 
+Exception object: 000076ad6ac00178
+Exception type:   System.ExecutionEngineException
+Message:          <none>
+InnerException:   System.InvalidOperationException, Use printexception 000076AD6AEBBE88 to see more.
+StackTrace (generated):
+<none>
+StackTraceString: <none>
+HResult: 80131506
+SyncBlocks to be cleaned up: 0
+Free-Threaded Interfaces to be released: 0
+MTA Interfaces to be released: 0
+STA Interfaces to be released: 0
+----------------------------------
+
+Heap 0
+generation 0 has 0 objects (572382347990->572382347990)
+generation 1 has 0 objects (572382347990->572382347990)
+  ... (stack truncated to 25 frames)
+
+
+────────────────────────────────────────────────────────────
+  HEURISTIC WARNINGS
+────────────────────────────────────────────────────────────
+  ▸ OutOfMemoryException detected — see eeheap -gc output below
+
+
+────────────────────────────────────────────────────────────
+  TOP HEAP TYPES (dumpheap -stat, last 20 entries)
+────────────────────────────────────────────────────────────
+76bc1f52ad80     1        24 System.Reflection.Internal.NativeHeapMemoryBlock+DisposableData
+76bc1f48cf18     1        32 System.IO.FileStream
+76bc1f034778     1        40 System.Gen2GcCallback
+76bc1ef4a198     1        56 System.Runtime.CompilerServices.ConditionalWeakTable<System.Buffers.SharedArrayPoolThreadLocalArray[], System.Object>+Container
+76bc1f0dc8d0     1        56 System.Runtime.CompilerServices.ConditionalWeakTable<System.Reflection.Assembly, System.Reflection.Metadata.MetadataReaderProvider>+Container
+76bc1f521818     1        64 Microsoft.Win32.SafeHandles.SafeFileHandle
+76bc1ef388f8     3        72 System.WeakReference<System.Diagnostics.Tracing.EventSource>
+76bc1ef30848     4        96 System.WeakReference<System.Diagnostics.Tracing.EventProvider>
+76bc1ee82238     2       144 System.Threading.Thread
+76bc1ef2eb50     1       184 System.Diagnostics.Tracing.NativeRuntimeEventSource
+76bc1ef4d100     1       184 System.Buffers.ArrayPoolEventSource
+76bc1ef39ae8     1       400 System.Diagnostics.Tracing.RuntimeEventSource
+76bc1ef30078     8       512 System.Diagnostics.Tracing.EventSource+OverrideEventProvider
+
+
+════════════════════════════════════════════════════════════
+  FULL SOS OUTPUT FOLLOWS
+════════════════════════════════════════════════════════════
+

@@ -1,0 +1,45 @@
+╔══════════════════════════════════════════════════════════╗
+║          DOTNET-SOS  AUTO-TRIAGE  SUMMARY               ║
+╚══════════════════════════════════════════════════════════╝
+  Runtime      : 10.0.8
+  Dump arch    : x86_64
+  Dump fidelity: full-or-triage
+  DAC source   : microsoft_symbol_server
+  Build time   : 2026-05-18T00:23:11Z
+
+────────────────────────────────────────────────────────────
+  TOP EXCEPTION
+────────────────────────────────────────────────────────────
+  Type    : System.AggregateException  [00007abc12345678]
+  Message : one or more errors
+  Inner   : System.InvalidOperationException, Use printexception 00007abcDEADBEEF to see more.  (not auto-expanded)
+
+
+────────────────────────────────────────────────────────────
+  FAULTING THREAD (clrthreads)
+────────────────────────────────────────────────────────────
+(no managed exception found — see clrthreads below)
+
+
+────────────────────────────────────────────────────────────
+  USER-CODE CALL STACKS
+────────────────────────────────────────────────────────────
+(no managed call stacks recovered — see clrstack -all below)
+
+
+────────────────────────────────────────────────────────────
+  HEURISTIC WARNINGS
+────────────────────────────────────────────────────────────
+  None detected
+
+
+────────────────────────────────────────────────────────────
+  TOP HEAP TYPES (dumpheap -stat, last 20 entries)
+────────────────────────────────────────────────────────────
+(managed heap not available)
+
+
+════════════════════════════════════════════════════════════
+  FULL SOS OUTPUT FOLLOWS
+════════════════════════════════════════════════════════════
+

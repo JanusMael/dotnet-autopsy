@@ -1,0 +1,11 @@
+{
+  "status": "success",
+  "dump_file": "/analysis/demo-trace.nettrace",
+  "dump_arch": "x86_64",
+  "container_arch": "x86_64",
+  "arch_match": true,
+  "dump_fidelity": "full-or-triage",
+  "runtime_version": "10.0.826.23019",
+  "dac_source": "n/a (trace)",
+  "analysis_timestamp": "2026-05-21T12:59:25Z"
+}

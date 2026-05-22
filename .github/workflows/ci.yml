@@ -1,0 +1,42 @@
+name: CI — parity gate
+
+# Fast, Docker-free parity check that runs on every PR and push to main.
+# The parity gate is the byte-exact regression proof for all three images:
+# it runs the .NET triage apps + analysis_md + json-get on committed fixtures
+# and diffs stdout against committed goldens — no Docker, no network.
+#
+# Separate from rot-check (weekly full Docker builds + smoke tests) because:
+#   - parity needs no build context, runs in ~30 s
+#   - it is the right per-PR gate: catches report regressions without the
+#     multi-minute Docker build cost
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  parity:
+    name: Parity gate (${{ matrix.image }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [sos, trace, gcdump]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Parity — ${{ matrix.image }}
+        run: bash common/parity/run-parity.sh ${{ matrix.image }}

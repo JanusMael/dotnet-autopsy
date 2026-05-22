@@ -1,0 +1,36 @@
+trace_file_path: /analysis/demo-trace.nettrace
+trace_file_size: 1266750
+
+=== dotnet-trace report topN -n 25 ===
+Top 25 Functions (Exclusive)                                                  Inclusive           Exclusive           
+1.  Thread.Sleep(int32)                                                       49.81%              49.81%              
+2.  app!Program.<Main>$(class System.String[])                                49.82%              16.72%              
+3.  Thread.<PollGC>g__PollGCWorker|67_0()                                     14.12%              14.12%              
+4.  app!Program.<<Main>$>g__HashRecords|0_1(int32)                            15.81%              11.37%              
+5.  Cryptography!Interop+Crypto.EvpDigestReset(class Microsoft.Win32.SafeH    1.86%               1.86%               
+6.  HashProviderDispenser+EvpHashProvider.AppendHashData(value class Syste    3.06%               1.71%               
+7.  Cryptography!Interop+Crypto.EvpDigestUpdate(class Microsoft.Win32.Safe    1.35%               1.35%               
+8.  Object.MemberwiseClone()                                                  0.87%               0.87%               
+9.  app!Program.<<Main>$>g__ParseAndSum|0_2(int32)                            0.68%               0.39%               
+10. Cryptography!Interop+Crypto.EvpDigestFinalEx(class Microsoft.Win32.Saf    0.3%                0.3%                
+11. Number.TryParseBinaryIntegerStyle(value class System.ReadOnlySpan`1<!!    0.23%               0.23%               
+12. HashProviderDispenser+EvpHashProvider.FinalizeHashAndReset(value class    0.72%               0.17%               
+13. HashProvider.AppendHashData(unsigned int8[],int32,int32)                  1.51%               0.17%               
+14. .ctor(class System.RuntimeType)                                           0.14%               0.13%               
+15. Array.Copy(class System.Array,class System.Array,int32)                   10.9%               0.1%                
+16. app!Program.<<Main>$>g__AllocateBuffers|0_3(int32)                        10.49%              0.06%               
+17. EventSource.CreateManifestAndDescriptors(class System.Type,class Syste    0.29%               0.04%               
+18. EventSource.SetCurrentThreadActivityId(value class System.Guid)           0.04%               0.04%               
+19. SearchValues.Create(value class System.ReadOnlySpan`1<wchar>)             0.04%               0.04%               
+20. Cryptography!Interop+Crypto.EvpMdCtxCreate(int)                           0.12%               0.03%               
+21. Thread.PollGC()                                                           0.03%               0.03%               
+22. Int32.ToString()                                                          0.04%               0.03%               
+23. Number.UInt32ToDecStr_NoSmallNumberCheck(unsigned int32)                  0.03%               0.03%               
+24. .ctor(int32,class System.Collections.Generic.IEqualityComparer`1<!0>)     0.03%               0.03%               
+25. UTF8Encoding.GetByteCount(class System.String)                            0.01%               0.01%               
+
+=== dotnet-trace convert --format speedscope ===
+Processing trace data file '/analysis/demo-trace.nettrace' to create a new Speedscope file '/analysis/trace.speedscope.json'.
+Conversion complete
+speedscope_file : /analysis/trace.speedscope.json (708542 bytes)
+

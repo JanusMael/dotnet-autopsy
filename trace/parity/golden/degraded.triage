@@ -1,0 +1,32 @@
+╔═════════════════════════════════════════════════════════╗
+║       DOTNET-AUTOPSY · TRACE  AUTO-TRIAGE  SUMMARY      ║
+╚═════════════════════════════════════════════════════════╝
+  Runtime      : unknown
+  Trace arch   : x86_64
+  Trace fidelity: degraded
+  Tool         : dotnet-trace 9.0.661903
+  Build time   : 2026-05-20T00:00:00Z
+
+────────────────────────────────────────────────────────────
+  TOP CPU FUNCTIONS
+────────────────────────────────────────────────────────────
+(no CPU sample rows parsed — check the dotnet-trace report output below)
+
+
+────────────────────────────────────────────────────────────
+  TRACE METADATA
+────────────────────────────────────────────────────────────
+  Trace file    : /analysis/empty-trace.nettrace
+  File size     : 1024 bytes
+
+
+────────────────────────────────────────────────────────────
+  HEURISTIC WARNINGS
+────────────────────────────────────────────────────────────
+  ▸ No CPU sample rows parsed — trace may be empty / wrong profile (need cpu-sampling)
+
+
+════════════════════════════════════════════════════════════
+  FULL TRACE OUTPUT FOLLOWS
+════════════════════════════════════════════════════════════
+

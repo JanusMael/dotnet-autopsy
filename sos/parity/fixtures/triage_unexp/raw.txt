@@ -1,0 +1,7 @@
+Loading core dump ...
+Exception object: 00007abc12345678
+Exception type:   System.AggregateException
+Message:          one or more errors
+InnerException:   System.InvalidOperationException, Use printexception 00007abcDEADBEEF to see more.
+StackTrace (generated):
+<none>

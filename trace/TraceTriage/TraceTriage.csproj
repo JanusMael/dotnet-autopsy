@@ -1,0 +1,32 @@
+<!--
+  TraceTriage.csproj — the dotnet-autopsy/trace report tool.
+
+  Per Phase E (v1.1), trace's analyzer is the FIRST and ONLY app in this
+  family that breaks the BCL-only / file-based-app discipline: it pulls in
+  Microsoft.Diagnostics.Tracing.TraceEvent (Microsoft's official .nettrace
+  parser) so the synthesized triage can include GC pause stats, exception
+  histograms, and an authoritative runtime_version (none of which can be
+  produced BCL-only from `dotnet-trace report topN` text alone). Sos's
+  triage_summary remains BCL-only file-based; only trace takes the cost.
+
+  AssemblyName=trace_triage so the published apphost matches the path
+  /opt/report-bin/trace_triage/trace_triage that analyze-trace.sh and the
+  parity harness expect — backward-compatible with the file-based-app era.
+
+  Framework-dependent, no AOT, no single-file (see RUNBOOK "Extending the
+  report tools (.NET 10 file-based apps)" — the same NativeAOT-off
+  publish discipline applies here too).
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>trace_triage</AssemblyName>
+    <RootNamespace>DotnetAutopsy.Trace</RootNamespace>
+    <Nullable>disable</Nullable>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.2.3" />
+  </ItemGroup>
+</Project>

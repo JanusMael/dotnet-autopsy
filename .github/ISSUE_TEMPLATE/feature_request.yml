@@ -1,0 +1,52 @@
+name: Feature request
+description: Suggest an enhancement or new capability
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - sos — crash / dump analysis
+        - trace — perf / nettrace analysis
+        - gcdump — heap snapshot analysis
+        - base — shared toolchain
+        - new image sibling
+        - CI / publishing
+        - documentation
+        - other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: What are you trying to do that is currently hard or impossible?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How would you like this to work? Sketches, command examples, or output mockups welcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any workarounds you have tried, or other approaches you considered.
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints awareness
+      description: Please confirm awareness of the project invariants (see CONTRIBUTING.md).
+      options:
+        - label: This does not require committing diagnostic artifacts (dumps / traces / gcdumps)
+          required: true
+        - label: This preserves the localhost-only network binding
+          required: true

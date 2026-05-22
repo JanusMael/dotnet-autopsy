@@ -1,0 +1,11 @@
+{
+  "status": "success",
+  "dump_file": "/analysis/demo-core.dump",
+  "dump_arch": "x86_64",
+  "container_arch": "x86_64",
+  "arch_match": true,
+  "dump_fidelity": "full-or-triage",
+  "runtime_version": "10.0.8",
+  "dac_source": "microsoft_symbol_server",
+  "analysis_timestamp": "2026-05-18T00:28:21Z"
+}

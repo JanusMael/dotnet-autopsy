@@ -1,0 +1,95 @@
+Loading core dump: /x ...
+Exception object: 00007a0000000001
+Exception type:   System.InvalidOperationException
+Message:          boom
+InnerException:   <none>
+
+ThreadCount: 3
+   DBG   ID OSID ThreadOBJ          State
+   0     1 01a2b 00007f0000000000 200 Preemptive  System.InvalidOperationException
+   1     2 0c3d4 00007f0000000001 200 Preemptive
+________________________________________
+
+OS Thread Id: 0x1a2b
+        Child SP               IP Call Site
+00007ffd00000a 00007ffd00100a System.Environment.FailFast(System.String)
+00007ffd00000b 00007ffd00100b System.Threading.Thread.Sleep(Int32)
+00007ffd00000c 00007ffd00100c System.Threading.Thread.Sleep(Int32)
+00007ffd00000d 00007ffd00100d System.Threading.Thread.Sleep(Int32)
+00007ffd00000e 00007ffd00100e System.Threading.Thread.Sleep(Int32)
+00007ffd00000f 00007ffd00100f System.Threading.Thread.Sleep(Int32)
+00007ffd000010 00007ffd001010 System.Threading.Thread.Sleep(Int32)
+00007ffd000011 00007ffd001011 System.Threading.Thread.Sleep(Int32)
+00007ffd000012 00007ffd001012 System.Threading.Thread.Sleep(Int32)
+00007ffd000013 00007ffd001013 System.Threading.Thread.Sleep(Int32)
+00007ffd000014 00007ffd001014 System.Threading.Thread.Sleep(Int32)
+00007ffd000015 00007ffd001015 System.Threading.Thread.Sleep(Int32)
+00007ffd000016 00007ffd001016 System.Threading.Thread.Sleep(Int32)
+00007ffd000017 00007ffd001017 System.Threading.Thread.Sleep(Int32)
+00007ffd000018 00007ffd001018 System.Threading.Thread.Sleep(Int32)
+00007ffd000019 00007ffd001019 System.Threading.Thread.Sleep(Int32)
+00007ffd00001a 00007ffd00101a System.Threading.Thread.Sleep(Int32)
+00007ffd00001b 00007ffd00101b System.Threading.Thread.Sleep(Int32)
+00007ffd00001c 00007ffd00101c System.Threading.Thread.Sleep(Int32)
+00007ffd00001d 00007ffd00101d System.Threading.Thread.Sleep(Int32)
+00007ffd00001e 00007ffd00101e System.Threading.Thread.Sleep(Int32)
+00007ffd00001f 00007ffd00101f System.Threading.Thread.Sleep(Int32)
+00007ffd000020 00007ffd001020 System.Threading.Thread.Sleep(Int32)
+00007ffd000021 00007ffd001021 System.Threading.Thread.Sleep(Int32)
+00007ffd000022 00007ffd001022 System.Threading.Thread.Sleep(Int32)
+00007ffd000023 00007ffd001023 System.Threading.Thread.Sleep(Int32)
+00007ffd000024 00007ffd001024 System.Threading.Thread.Sleep(Int32)
+00007ffd000025 00007ffd001025 System.Threading.Thread.Sleep(Int32)
+00007ffd000026 00007ffd001026 System.Threading.Thread.Sleep(Int32)
+00007ffd000027 00007ffd001027 System.Threading.Thread.Sleep(Int32)
+00007ffd000028 00007ffd001028 System.Threading.Thread.Sleep(Int32)
+
+OS Thread Id: 0x99
+        Child SP               IP Call Site
+00007ffd900000 00007ffd901000 [InlinedCallFrame: 00007ffd900000]
+00007ffd900001 00007ffd901001 Microsoft.Extensions.Hosting.Internal.Host.Run()
+00007ffd900002 00007ffd901002 MyApp.Worker.RunLoop()
+00007ffd900003 00007ffd901003 System.Threading.ThreadPoolWorkQueue.Dispatch()
+
+────────────────────────────────────────────────────────────
+
+Thread 7 OwnedBy thread 2
+Thread 8 Waiting on lock
+Thread 9 OwnedBy thread 2
+Thread 10 Waiting on lock
+Thread 11 Waiting on lock
+
+CPU utilization: 1 %
+Work Request in Queue: 0
+Queue Length: 250
+
+Finalizable Objects ............: 5000
+
+system reports it is low: Out Of Memory condition observed
+
+Statistics:
+              MT    Count    TotalSize Class Name
+00007aaa00000001       10         1600 System.String
+00007aaa00000002        9         1440 System.Object[]
+00007aaa00000003        8         1280 System.Byte[]
+00007aaa00000004        7         1120 System.Int32[]
+00007aaa00000005        6          960 System.Char[]
+00007aaa00000006        5          800 MyApp.Cache+Entry
+00007aaa00000007        4          640 System.Collections.Generic.List`1
+00007aaa00000008        3          480 System.Threading.Tasks.Task
+00007aaa00000009        2          320 System.Text.StringBuilder
+00007aaa0000000a        1          160 System.Exception
+00007aaa0000000b       11         1760 System.RuntimeType
+00007aaa0000000c       12         1920 System.Reflection.RuntimeMethodInfo
+00007aaa0000000d       13         2080 System.Diagnostics.Tracing.EventSource
+00007aaa0000000e       14         2240 System.Threading.Thread
+00007aaa0000000f       15         2400 System.WeakReference
+00007aaa00000010       16         2560 System.GC+MemoryLoadChangeNotification
+00007aaa00000011       17         2720 System.Buffers.ArrayPool`1+Bucket
+00007aaa00000012       18         2880 System.IO.Stream+NullStream
+00007aaa00000013       19         3040 System.AppDomain
+00007aaa00000014       20         3200 System.Threading.TimerQueue
+00007aaa00000015       21         3360 System.RuntimeType+RuntimeTypeCache
+00007aaa00000016       22         3520 MyApp.Worker
+00007aaa00000017       23         3680 MyApp.Program
+Total 312 objects

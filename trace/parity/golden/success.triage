@@ -1,0 +1,56 @@
+╔═════════════════════════════════════════════════════════╗
+║       DOTNET-AUTOPSY · TRACE  AUTO-TRIAGE  SUMMARY      ║
+╚═════════════════════════════════════════════════════════╝
+  Runtime      : 10.0.826.23019
+  Trace arch   : x86_64
+  Trace fidelity: full-or-triage
+  Tool         : dotnet-trace 9.0.661903+d7b455b46332b31fd9ba3a3f3e020387984c511a
+  Build time   : 2026-05-21T12:59:23Z
+
+────────────────────────────────────────────────────────────
+  TOP CPU FUNCTIONS
+────────────────────────────────────────────────────────────
+   1. Thread.Sleep(int32)                                                     incl= 49.81%  excl= 49.81%
+   2. app!Program.<Main>$(class System.String[])                              incl= 49.82%  excl= 16.72%
+   3. Thread.<PollGC>g__PollGCWorker|67_0()                                   incl= 14.12%  excl= 14.12%
+   4. app!Program.<<Main>$>g__HashRecords|0_1(int32)                          incl= 15.81%  excl= 11.37%
+   5. Cryptography!Interop+Crypto.EvpDigestReset(class Microsoft.Win32.SafeH  incl=  1.86%  excl=  1.86%
+   6. HashProviderDispenser+EvpHashProvider.AppendHashData(value class Syste  incl=  3.06%  excl=  1.71%
+   7. Cryptography!Interop+Crypto.EvpDigestUpdate(class Microsoft.Win32.Safe  incl=  1.35%  excl=  1.35%
+   8. Object.MemberwiseClone()                                                incl=  0.87%  excl=  0.87%
+   9. app!Program.<<Main>$>g__ParseAndSum|0_2(int32)                          incl=  0.68%  excl=  0.39%
+  10. Cryptography!Interop+Crypto.EvpDigestFinalEx(class Microsoft.Win32.Saf  incl=   0.3%  excl=   0.3%
+  11. Number.TryParseBinaryIntegerStyle(value class System.ReadOnlySpan`1<!!  incl=  0.23%  excl=  0.23%
+  12. HashProviderDispenser+EvpHashProvider.FinalizeHashAndReset(value class  incl=  0.72%  excl=  0.17%
+  13. HashProvider.AppendHashData(unsigned int8[],int32,int32)                incl=  1.51%  excl=  0.17%
+  14. .ctor(class System.RuntimeType)                                         incl=  0.14%  excl=  0.13%
+  15. Array.Copy(class System.Array,class System.Array,int32)                 incl=  10.9%  excl=   0.1%
+  16. app!Program.<<Main>$>g__AllocateBuffers|0_3(int32)                      incl= 10.49%  excl=  0.06%
+  17. EventSource.CreateManifestAndDescriptors(class System.Type,class Syste  incl=  0.29%  excl=  0.04%
+  18. EventSource.SetCurrentThreadActivityId(value class System.Guid)         incl=  0.04%  excl=  0.04%
+  19. SearchValues.Create(value class System.ReadOnlySpan`1<wchar>)           incl=  0.04%  excl=  0.04%
+  20. Cryptography!Interop+Crypto.EvpMdCtxCreate(int)                         incl=  0.12%  excl=  0.03%
+  21. Thread.PollGC()                                                         incl=  0.03%  excl=  0.03%
+  22. Int32.ToString()                                                        incl=  0.04%  excl=  0.03%
+  23. Number.UInt32ToDecStr_NoSmallNumberCheck(unsigned int32)                incl=  0.03%  excl=  0.03%
+  24. .ctor(int32,class System.Collections.Generic.IEqualityComparer`1<!0>)   incl=  0.03%  excl=  0.03%
+  25. UTF8Encoding.GetByteCount(class System.String)                          incl=  0.01%  excl=  0.01%
+
+
+────────────────────────────────────────────────────────────
+  TRACE METADATA
+────────────────────────────────────────────────────────────
+  Trace file    : /analysis/demo-trace.nettrace
+  File size     : 1266750 bytes
+
+
+────────────────────────────────────────────────────────────
+  HEURISTIC WARNINGS
+────────────────────────────────────────────────────────────
+  ▸ Highly concentrated CPU: top 3 functions = 80.65% exclusive
+
+
+════════════════════════════════════════════════════════════
+  FULL TRACE OUTPUT FOLLOWS
+════════════════════════════════════════════════════════════
+

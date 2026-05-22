@@ -1,0 +1,14 @@
+trace_file_path: /analysis/empty-trace.nettrace
+trace_file_size: 1024
+
+=== dotnet-trace report topN -n 25 ===
+No CPU samples found in the trace. The profile may have been captured
+with a non-cpu-sampling provider set (e.g. gc-verbose, runtime keyword
+masks without ThreadTime), or the captured window may have been too
+short to produce any sample points.
+
+=== dotnet-trace convert --format speedscope ===
+Processing trace data file '/analysis/empty-trace.nettrace' to create a new Speedscope file '/analysis/trace.speedscope.json'.
+Conversion complete
+speedscope_file : /analysis/trace.speedscope.json (412 bytes)
+

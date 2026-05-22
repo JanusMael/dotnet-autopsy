@@ -1,0 +1,162 @@
+# Provenance — dotnet-autopsy · gcdump analysis image
+# Re-pin any value via --build-arg to reproduce this exact environment.
+# Generated: 2026-05-21T18:56:03Z
+
+base_image_tag    : mcr.microsoft.com/dotnet/sdk:10.0
+dotnet_sdk        : 10.0.300
+dotnet-gcdump     : 9.0.661903+d7b455b46332b31fd9ba3a3f3e020387984c511a
+dotnet-monitor    : 9.0.0  (pinned)
+report_tool       : dotnet-gcdump
+gcdump_sha256     : 907a58e6430387f22c17ac3e1ebe0e0f57513530d2c0f09052700c1cb9ee712b
+gcdump_size_bytes : 457971
+container_arch    : x86_64
+dump_arch         : x86_64
+runtime_version   : unknown
+gcdump_fidelity   : full-or-triage
+build_timestamp   : 2026-05-21T18:56:03Z
+
+╔═════════════════════════════════════════════════════════╗
+║      DOTNET-AUTOPSY · GCDUMP  AUTO-TRIAGE  SUMMARY      ║
+╚═════════════════════════════════════════════════════════╝
+  Runtime      : unknown
+  Gcdump arch  : x86_64
+  Gcdump fidelity: full-or-triage
+  Tool         : dotnet-gcdump 9.0.661903+d7b455b46332b31fd9ba3a3f3e020387984c511a
+  Build time   : 2026-05-21T18:56:03Z
+
+────────────────────────────────────────────────────────────
+  HEAP SUMMARY
+────────────────────────────────────────────────────────────
+  GC Heap bytes     : 68,534,658
+  GC Heap objects   : 25,002
+  Types reported    : 78
+
+
+────────────────────────────────────────────────────────────
+  TOP TYPES BY SIZE
+────────────────────────────────────────────────────────────
+   1. Entry<System.Int32,System.String>[] (Bytes > 100K)  [System.Private.CoreLib.dll]  bytes=      202,080  count=         1
+   2. System.String[] (Bytes > 10K)  [System.Private.CoreLib.dll]                       bytes=       65,560  count=         1
+   3. System.Byte[][] (Bytes > 10K)  [System.Private.CoreLib.dll]                       bytes=       65,560  count=         1
+   4. System.Int32[] (Bytes > 10K)  [System.Private.CoreLib.dll]                        bytes=       33,700  count=         1
+   5. System.String (Bytes > 10K)  [System.Private.CoreLib.dll]                         bytes=       29,000  count=         1
+   6. Entry<System.Int32,System.Int32[]>[] (Bytes > 10K)  [System.Private.CoreLib.dll]  bytes=       10,368  count=         1
+   7. System.Byte[] (Bytes > 1K)  [System.Private.CoreLib.dll]                          bytes=        8,216  count=     8,000
+   8. System.Object[] (Bytes > 1K)  [System.Private.CoreLib.dll]                        bytes=        8,184  count=         1
+   9. System.Int32[] (Bytes > 1K)  [System.Private.CoreLib.dll]                         bytes=        3,120  count=       402
+  10. System.String[] (Bytes > 1K)  [System.Private.CoreLib.dll]                        bytes=        2,424  count=         1
+  11. System.Diagnostics.Tracing.RuntimeEventSource  [System.Private.CoreLib.dll]       bytes=          400  count=         1
+  12. System.String<,>  [System.Private.CoreLib.dll]                                    bytes=          296  count=         1
+  13. Entry<System.String,System.Object>[]  [System.Private.CoreLib.dll]                bytes=          288  count=         1
+  14. Entry<System.Char,System.String>[]  [System.Private.CoreLib.dll]                  bytes=          192  count=         1
+  15. System.Diagnostics.Tracing.NativeRuntimeEventSource  [System.Private.CoreLib.dl…  bytes=          184  count=         1
+  16. System.OutOfMemoryException  [System.Private.CoreLib.dll]                         bytes=          120  count=         1
+  17. System.StackOverflowException  [System.Private.CoreLib.dll]                       bytes=          120  count=         1
+  18. System.ExecutionEngineException  [System.Private.CoreLib.dll]                     bytes=          120  count=         1
+  19. Entry<System.Guid,System.Diagnostics.Tracing.EventSource+OverrideEventProvider>…  bytes=          120  count=         1
+  20. System.IntPtr[]  [System.Private.CoreLib.dll]                                     bytes=          104  count=         2
+  21. System.IO.StreamWriter  [System.Private.CoreLib.dll]                              bytes=          104  count=         1
+  22. System.Int32[]  [System.Private.CoreLib.dll]                                      bytes=           96  count=         5
+  23. Entry<System.String,System.Diagnostics.Tracing.EventSource+OverrideEventProvide…  bytes=           96  count=         1
+  24. System.Collections.Generic.Dictionary<System.String,System.Object>  [System.Pri…  bytes=           80  count=         1
+  25. System.Collections.Generic.Dictionary<System.Guid,System.Diagnostics.Tracing.Ev…  bytes=           80  count=         1
+
+
+────────────────────────────────────────────────────────────
+  HEURISTIC WARNINGS
+────────────────────────────────────────────────────────────
+  None detected
+
+
+════════════════════════════════════════════════════════════
+  FULL GCDUMP OUTPUT FOLLOWS
+════════════════════════════════════════════════════════════
+
+
+gcdump_file_path: /analysis/demo-heap.gcdump
+gcdump_file_size: 457971
+
+=== dotnet-gcdump report ===
+     68,534,658  GC Heap bytes
+         25,002  GC Heap objects
+
+   Object Bytes     Count  Type
+        202,080         1  Entry<System.Int32,System.String>[] (Bytes > 100K)  [System.Private.CoreLib.dll]
+         65,560         1  System.String[] (Bytes > 10K)  [System.Private.CoreLib.dll]
+         65,560         1  System.Byte[][] (Bytes > 10K)  [System.Private.CoreLib.dll]
+         33,700         1  System.Int32[] (Bytes > 10K)  [System.Private.CoreLib.dll]
+         29,000         1  System.String (Bytes > 10K)  [System.Private.CoreLib.dll]
+         10,368         1  Entry<System.Int32,System.Int32[]>[] (Bytes > 10K)  [System.Private.CoreLib.dll]
+          8,216     8,000  System.Byte[] (Bytes > 1K)  [System.Private.CoreLib.dll]
+          8,184         1  System.Object[] (Bytes > 1K)  [System.Private.CoreLib.dll]
+          3,120       402  System.Int32[] (Bytes > 1K)  [System.Private.CoreLib.dll]
+          2,424         1  System.String[] (Bytes > 1K)  [System.Private.CoreLib.dll]
+            400         1  System.Diagnostics.Tracing.RuntimeEventSource  [System.Private.CoreLib.dll]
+            296         1  System.String<,>  [System.Private.CoreLib.dll]
+            288         1  Entry<System.String,System.Object>[]  [System.Private.CoreLib.dll]
+            192         1  Entry<System.Char,System.String>[]  [System.Private.CoreLib.dll]
+            184         1  System.Diagnostics.Tracing.NativeRuntimeEventSource  [System.Private.CoreLib.dll]
+            120         1  System.OutOfMemoryException  [System.Private.CoreLib.dll]
+            120         1  System.StackOverflowException  [System.Private.CoreLib.dll]
+            120         1  System.ExecutionEngineException  [System.Private.CoreLib.dll]
+            120         1  Entry<System.Guid,System.Diagnostics.Tracing.EventSource+OverrideEventProvider>[]  [System.Private.CoreLib.dll]
+            104         2  System.IntPtr[]  [System.Private.CoreLib.dll]
+            104         1  System.IO.StreamWriter  [System.Private.CoreLib.dll]
+             96         5  System.Int32[]  [System.Private.CoreLib.dll]
+             96         1  Entry<System.String,System.Diagnostics.Tracing.EventSource+OverrideEventProvider>[]  [System.Private.CoreLib.dll]
+             80         1  System.Collections.Generic.Dictionary<System.String,System.Object>  [System.Private.CoreLib.dll]
+             80         1  System.Collections.Generic.Dictionary<System.Guid,System.Diagnostics.Tracing.EventSource+OverrideEventProvider>  [System.Private.CoreLib.dll]
+             80         1  System.Collections.Generic.Dictionary<System.String,System.Diagnostics.Tracing.EventSource+OverrideEventProvider>  [System.Private.CoreLib.dll]
+             80         1  System.Collections.Generic.Dictionary<System.Char,System.String>  [System.Private.CoreLib.dll]
+             80         1  System.Collections.Generic.Dictionary<System.Int32,System.String>  [System.Private.CoreLib.dll]
+             80         1  System.Collections.Generic.Dictionary<System.Int32,System.Int32[]>  [System.Private.CoreLib.dll]
+             72         1  System.Threading.Tasks.Task<System.Threading.Tasks.VoidTaskResult>  [System.Private.CoreLib.dll]
+             64         6  OverrideEventProvider  [System.Private.CoreLib.dll]
+             64         4  Microsoft.Win32.SafeHandles.SafeFileHandle  [System.Private.CoreLib.dll]
+             64         3  System.Func<System.Diagnostics.Tracing.EventSource>  [System.Private.CoreLib.dll]
+             64         3  System.Diagnostics.Tracing.EventPipeEventProvider  [System.Private.CoreLib.dll]
+             64         1  System.UnhandledExceptionEventHandler  [System.Private.CoreLib.dll]
+             64         1  System.Threading.ContextCallback  [System.Private.CoreLib.dll]
+             64         1  System.Func<System.TerminalFormatStrings>  [System.Private.CoreLib.dll]
+             56         1  System.AppDomain  [System.Private.CoreLib.dll]
+             48         2  System.Reflection.RuntimeAssembly  [System.Private.CoreLib.dll]
+             48         1  UTF8EncodingSealed  [System.Private.CoreLib.dll]
+             48         1  SyncTextWriter  [System.Private.CoreLib.dll]
+             48         1  UnixConsoleStream  [System.Console.dll]
+             48         1  System.Text.EncoderNLS  [System.Private.CoreLib.dll]
+             40         5  System.RuntimeType  [System.Private.CoreLib.dll]
+             40         3  System.Diagnostics.Tracing.EventProviderImpl  [System.Private.CoreLib.dll]
+             40         1  System.Threading.Tasks.TaskFactory  [System.Private.CoreLib.dll]
+             40         1  NullTextWriter  [System.Private.CoreLib.dll]
+             40         1  System.Lazy<System.TerminalFormatStrings>  [System.Private.CoreLib.dll]
+             40         1  System.WeakReference<System.Diagnostics.Tracing.EventSource>[]  [System.Private.CoreLib.dll]
+             40         1  System.Reflection.RuntimeModule  [System.Private.CoreLib.dll]
+             32         9  System.String[]  [System.Private.CoreLib.dll]
+             32         2  System.Guid  [System.Private.CoreLib.dll]
+             32         1  System.Diagnostics.Tracing.ActivityTracker  [System.Private.CoreLib.dll]
+             32         1  System.Collections.Generic.List<System.Func<System.Diagnostics.Tracing.EventSource>>  [System.Private.CoreLib.dll]
+             32         1  System.Collections.Generic.List<System.WeakReference<System.Diagnostics.Tracing.EventSource>>  [System.Private.CoreLib.dll]
+             32         1  System.Collections.Generic.List<System.Char>  [System.Private.CoreLib.dll]
+             32         1  System.Collections.Generic.List<System.String>  [System.Private.CoreLib.dll]
+             32         1  System.Collections.Generic.List<System.Byte[]>  [System.Private.CoreLib.dll]
+             32         1  System.LazyHelper  [System.Private.CoreLib.dll]
+             24         4  System.Char[]  [System.Private.CoreLib.dll]
+             24         3  System.Object  [System.Private.CoreLib.dll]
+             24         3  System.WeakReference<System.Diagnostics.Tracing.EventProvider>  [System.Private.CoreLib.dll]
+             24         2  System.WeakReference<System.Diagnostics.Tracing.EventSource>  [System.Private.CoreLib.dll]
+             24         2  OrdinalComparer  [System.Private.CoreLib.dll]
+             24         2  System.Runtime.CompilerServices.StrongBox<System.Boolean>  [System.Private.CoreLib.dll]
+             24         2  System.Diagnostics.Tracing.TraceLoggingEventHandleTable  [System.Private.CoreLib.dll]
+             24         2  System.Func<System.Diagnostics.Tracing.EventSource>[]  [System.Private.CoreLib.dll]
+             24         1  System.OrdinalCaseSensitiveComparer  [System.Private.CoreLib.dll]
+             24         1  System.OrdinalIgnoreCaseComparer  [System.Private.CoreLib.dll]
+             24         1  []c  [System.Private.CoreLib.dll]
+             24         1  NullStream  [System.Private.CoreLib.dll]
+             24         1  OrdinalIgnoreCaseComparer  [System.Private.CoreLib.dll]
+             24         1  []c  [System.Console.dll]
+             24         1  System.Collections.Generic.StringEqualityComparer  [System.Private.CoreLib.dll]
+             24         1  System.Byte[][]  [System.Private.CoreLib.dll]
+             24         1  System.Text.EncoderReplacementFallback  [System.Private.CoreLib.dll]
+             24         1  System.Text.DecoderReplacementFallback  [System.Private.CoreLib.dll]
+             22    16,416  System.String  [System.Private.CoreLib.dll]
+

@@ -1,0 +1,16 @@
+# Provenance — degraded trace test
+report_tool       : dotnet-trace
+runtime_version   : unknown
+dump_arch         : x86_64
+
+════════════════════════════════════════════════════════════
+  ⚠ ANALYSIS DEGRADED — TRACE FILE UNUSABLE
+════════════════════════════════════════════════════════════
+  dotnet-trace report/convert reported a failure on the trace.
+
+  Re-capture a cpu-sampling trace at the origin, then rebuild:
+    dotnet-trace collect --format nettrace -o trace.nettrace -p <pid>
+    dotnet-trace collect --format nettrace -o trace.nettrace -- <command>
+
+  See trace/RUNBOOK.md § Capturing a usable .nettrace.
+════════════════════════════════════════════════════════════

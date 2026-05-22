@@ -1,0 +1,26 @@
+# Provenance — test
+report_tool      : dotnet-dump
+runtime_version  : 9.9.9
+dump_arch        : testarch
+
+╔══════════════════════════════════════════════════════════╗
+║          DOTNET-SOS  AUTO-TRIAGE  SUMMARY               ║
+╚══════════════════════════════════════════════════════════╝
+  Runtime      : 9.9.9
+  Dump arch    : testarch
+
+────────────────────────────────────────────────────────────
+  TOP EXCEPTION
+────────────────────────────────────────────────────────────
+  Type    : <script>alert(1)</script>
+~~~~ tilde-run body line that must not break the fence
+  Message : <b>not html</b> & <i>x</i>
+
+════════════════════════════════════════════════════════════
+  FULL SOS OUTPUT FOLLOWS
+════════════════════════════════════════════════════════════
+
+this raw line matches no command anchor signature
+<script>document.cookie</script>
+~~~~~~ a deeper tilde run in the raw fallback block
+plain tail line

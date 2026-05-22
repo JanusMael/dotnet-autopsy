@@ -1,0 +1,36 @@
+# Dump files — never commit these; they contain process memory (secrets/PII).
+*.dmp
+*.dump
+
+# Analysis outputs — generated at build time, case-specific. Root-anchored
+# (leading /) so these patterns do NOT also swallow the byte-exact parity
+# corpus (parity/fixtures/*/analysis.txt, status.json, …).
+/analysis.txt
+/analysis.md
+/provenance.txt
+/status.json
+
+# Baked file server binary — fetched at build time from GitHub releases.
+# These files were previously committed but are no longer tracked.
+fileserver/
+
+# Parity harness build output — parity/run-parity.sh publishes the .NET
+# report tools here for the differential gate. Never committed; rebuilt on
+# demand. (parity/run-parity.sh and parity/fixtures/ ARE tracked — they are
+# the gate + its corpus.)
+parity/_bin/
+
+# Symbol cache and user PDBs — case-specific, potentially large/sensitive.
+# The symbols/ directory itself IS tracked (via symbols/.keep);
+# only its contents are excluded.
+symbols/*
+!symbols/.keep
+
+# .NET build artifacts — when a host accidentally runs `dotnet build`/`publish`
+# from within a project directory, MSBuild populates bin/ and obj/ alongside
+# the .csproj. The dotnet-autopsy report tools are always built INSIDE
+# throwaway SDK containers (parity/_bin or the per-image Docker layer), so
+# bin/ and obj/ should never be committed. Phase E's trace/TraceTriage/ is
+# the first project tree under this repo; this rule covers any future ones.
+**/bin/
+**/obj/

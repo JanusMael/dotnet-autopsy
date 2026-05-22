@@ -1,0 +1,257 @@
+name: Publish — dotnet-autopsy-base to GHCR
+
+# Publishes the SHARED toolchain image `dotnet-autopsy-base` (multi-arch,
+# signed, SBOM-attested) to GitHub Container Registry.
+#
+# Per-case images (sos, trace, gcdump) are NOT published from CI — they
+# bake user-supplied dump/trace/gcdump captures (process memory + PII) and
+# the air-gapped default in README.md depends on them staying local-only.
+# Users `FROM ghcr.io/JanusMael/dotnet-autopsy-base:vX.Y.Z` and add their
+# artifact in-place; that's the supported reuse path.
+#
+# Triggers:
+#   - push: tag `vX.Y.Z` → auto-publish base, signed + SBOM + SLSA provenance
+#   - workflow_dispatch     → manual run, dry-run by default
+#
+# Architecture: per-arch matrix builds → single multi-arch manifest. The
+# per-arch jobs reuse the existing common/base.dockerfile verbatim (same
+# `FROM --platform=linux/${DUMP_ARCH}` pattern that build.sh / demo.sh use
+# locally — no dockerfile changes needed for multi-arch publish).
+#
+# Outputs:
+#   - ghcr.io/<owner>/dotnet-autopsy-base:vX.Y.Z      (multi-arch manifest)
+#   - ghcr.io/<owner>/dotnet-autopsy-base:latest      (moves on each tag)
+#   - per-arch immutable tags `:vX.Y.Z-amd64`, `:vX.Y.Z-arm64`
+#   - cosign keyless signature (OIDC) on the manifest digest
+#   - CycloneDX SBOM uploaded as a workflow artifact + attached via cosign
+#   - SLSA build-provenance attestation
+#
+# Verify before consuming:
+#   docker pull ghcr.io/JanusMael/dotnet-autopsy-base:vX.Y.Z
+#   cosign verify ghcr.io/JanusMael/dotnet-autopsy-base:vX.Y.Z \
+#       --certificate-identity-regexp 'https://github.com/.+/dotnet-.+/\.github/workflows/publish\.yml@refs/tags/v.+' \
+#       --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Override tag (default: derived from ref or manual-YYYYMMDD-HHMMSS)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Build but do NOT push to the registry'
+        required: false
+        type: boolean
+        default: true
+
+env:
+  # GHCR namespace is hardcoded to the canonical repo so a fork doesn't
+  # silently push to ghcr.io/<fork-owner>/. Override via env on a fork.
+  REGISTRY: ghcr.io
+  IMAGE_NAME: JanusMael/dotnet-autopsy-base
+
+permissions:
+  contents: read           # checkout
+  packages: write          # GHCR push
+  id-token: write          # cosign keyless OIDC + SLSA provenance
+  attestations: write      # SLSA build-provenance
+
+jobs:
+  # ── 0. Common metadata derivation (tag + dry-run) ──────────────────────
+  derive:
+    name: Derive tag and dry-run flag
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.derive.outputs.tag }}
+      dry_run: ${{ steps.derive.outputs.dry_run }}
+      move_latest: ${{ steps.derive.outputs.move_latest }}
+    steps:
+      - name: Derive
+        id: derive
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            DRY="false"
+            MOVE_LATEST="true"
+          else
+            INPUT_TAG="${{ inputs.tag }}"
+            if [ -n "${INPUT_TAG}" ]; then
+              TAG="${INPUT_TAG}"
+            else
+              TAG="manual-$(date -u +%Y%m%d-%H%M%S)"
+            fi
+            DRY="${{ inputs.dry_run }}"
+            MOVE_LATEST="false"
+          fi
+          echo "tag=${TAG}"                   | tee -a "$GITHUB_OUTPUT"
+          echo "dry_run=${DRY}"               | tee -a "$GITHUB_OUTPUT"
+          echo "move_latest=${MOVE_LATEST}"   | tee -a "$GITHUB_OUTPUT"
+
+  # ── 1. Per-arch build + push to a per-arch tag ─────────────────────────
+  # Same base.dockerfile + DUMP_ARCH plumbing build.sh / demo.sh already
+  # use locally — verbatim, no dockerfile changes for the publish path.
+  build-per-arch:
+    name: Build ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    needs: derive
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU (arm64 emulation on x64 runner)
+        if: matrix.arch == 'arm64'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: needs.derive.outputs.dry_run == 'false'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build (and push if not dry-run) ${{ matrix.arch }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: common/base.dockerfile
+          platforms: linux/${{ matrix.arch }}
+          push: ${{ needs.derive.outputs.dry_run == 'false' }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.derive.outputs.tag }}-${{ matrix.arch }}
+          build-args: |
+            DUMP_ARCH=${{ matrix.arch }}
+          provenance: true
+          sbom: true
+          cache-from: type=gha,scope=dotnet-autopsy-base-${{ matrix.arch }}
+          cache-to:   type=gha,scope=dotnet-autopsy-base-${{ matrix.arch }},mode=max
+
+  # ── 2. Merge per-arch tags into a multi-arch manifest ──────────────────
+  manifest:
+    name: Multi-arch manifest + sign
+    runs-on: ubuntu-latest
+    needs: [derive, build-per-arch]
+    if: needs.derive.outputs.dry_run == 'false'
+
+    outputs:
+      manifest_digest: ${{ steps.merge.outputs.digest }}
+
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create multi-arch manifest (tag + optional :latest)
+        id: merge
+        run: |
+          BASE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          TAG="${{ needs.derive.outputs.tag }}"
+          SRCS="${BASE}:${TAG}-amd64 ${BASE}:${TAG}-arm64"
+
+          # Primary manifest at the version tag.
+          docker buildx imagetools create -t "${BASE}:${TAG}" ${SRCS}
+
+          # Move :latest on real tag pushes (not on workflow_dispatch).
+          if [ "${{ needs.derive.outputs.move_latest }}" = "true" ]; then
+            docker buildx imagetools create -t "${BASE}:latest" ${SRCS}
+          fi
+
+          # Read back the manifest digest for cosign signing.
+          DIGEST=$(docker buildx imagetools inspect "${BASE}:${TAG}" \
+            --format '{{ .Manifest.Digest }}')
+          echo "digest=${DIGEST}" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign the multi-arch manifest (keyless OIDC)
+        env:
+          DIGEST: ${{ steps.merge.outputs.digest }}
+        run: |
+          cosign sign --yes \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${DIGEST}"
+
+      - name: Generate SBOM (CycloneDX) for the published manifest
+        uses: anchore/sbom-action@v0
+        with:
+          image: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.merge.outputs.digest }}"
+          format: cyclonedx-json
+          output-file: sbom-cyclonedx.json
+          upload-artifact: true
+          upload-artifact-retention-days: 30
+
+      - name: Attest SBOM via cosign
+        env:
+          DIGEST: ${{ steps.merge.outputs.digest }}
+        run: |
+          cosign attest --yes \
+            --predicate sbom-cyclonedx.json \
+            --type cyclonedx \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${DIGEST}"
+
+      - name: GitHub-native SLSA build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          subject-digest: ${{ steps.merge.outputs.digest }}
+          push-to-registry: true
+
+      - name: Publish summary
+        run: |
+          {
+            echo "## dotnet-autopsy-base publish"
+            echo ""
+            echo "- Tag       : \`${{ needs.derive.outputs.tag }}\`"
+            echo "- Manifest  : \`${{ steps.merge.outputs.digest }}\`"
+            echo "- Platforms : linux/amd64, linux/arm64"
+            echo "- Latest    : \`${{ needs.derive.outputs.move_latest }}\`"
+            echo ""
+            echo "Pull:"
+            echo ""
+            echo '```sh'
+            echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.derive.outputs.tag }}"
+            echo '```'
+            echo ""
+            echo "Verify (keyless OIDC):"
+            echo ""
+            echo '```sh'
+            echo "cosign verify ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.derive.outputs.tag }} \\"
+            echo "  --certificate-identity-regexp 'https://github.com/.+/dotnet-.+/\\.github/workflows/publish\\.yml@refs/tags/v.+' \\"
+            echo "  --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ── 3. Dry-run summary (when nothing was pushed) ───────────────────────
+  dry-run-summary:
+    name: Dry-run summary
+    runs-on: ubuntu-latest
+    needs: [derive, build-per-arch]
+    if: needs.derive.outputs.dry_run == 'true'
+    steps:
+      - run: |
+          {
+            echo "## dotnet-autopsy-base publish (DRY RUN)"
+            echo ""
+            echo "Builds were produced for both arches but **nothing was pushed**."
+            echo "Re-run with \`dry_run=false\` to publish tag \`${{ needs.derive.outputs.tag }}\`."
+          } >> "$GITHUB_STEP_SUMMARY"

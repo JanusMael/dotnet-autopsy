@@ -1,0 +1,27 @@
+# Exclude VCS and CI — never belong in the build context / image.
+.git
+.gitattributes
+.gitignore
+.github
+
+# Host-only assets not worth baking.
+LICENSE
+
+# NOTE: README.md, RUNBOOK.md and the build/run sources (docker-compose.yml,
+# build.sh, build.ps1, smoke.sh, demo.sh, *.dockerfile, *.sh, *.cs) are
+# deliberately NOT excluded — they are baked into the image under
+# /analysis/docs and /analysis/docker for in-container reference.
+
+# Stale baked fileserver tree (replaced by runtime download in Dockerfile).
+fileserver/
+
+# Parity harness — host-side differential test gate + fixtures + build
+# output. No Dockerfile COPYs it; keep it out of EVERY build context
+# (repo-root context is shared by common/base + per-image builds, so the
+# harness now lives at common/parity/ + <image>/parity/ — exclude at any
+# depth, plus the leftover repo-root parity/_bin holding the gate reference).
+parity/
+**/parity/
+
+# DO NOT exclude: the dump file (*.dump / *.dmp) or the symbols/ dir.
+# Those are the per-case inputs that get baked in.

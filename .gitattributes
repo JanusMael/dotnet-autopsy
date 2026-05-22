@@ -1,0 +1,22 @@
+# Force LF line endings for all shell scripts and Dockerfiles
+# so Windows checkouts don't break the in-container #!/bin/bash shebang.
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+*.dockerfile text eol=lf
+*.cs        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.json      text eol=lf
+*.md        text eol=lf
+.gitignore  text eol=lf
+.gitattributes text eol=lf
+.dockerignore text eol=lf
+
+# Parity gate material is byte-exact (box-drawing glyphs, ~-fences, the
+# captured oracle / .cs output). Never let git normalize line endings here
+# or the cmp in common/parity/run-parity.sh breaks. The `**/` prefix
+# matches every per-image parity dir (sos/parity, trace/parity, future
+# siblings); common/parity/run-parity.sh itself stays under the *.sh eol=lf
+# rule above — it is not under fixtures/ or golden/.
+**/parity/fixtures/** -text
+**/parity/golden/**   -text

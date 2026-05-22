@@ -1,0 +1,11 @@
+# Provenance — degraded test
+report_tool      : dotnet-dump
+runtime_version  : 7.7.7
+dump_arch        : ddd
+
+════════════════════════════════════════════════════════════
+  ⚠ ANALYSIS DEGRADED — low fidelity dump
+════════════════════════════════════════════════════════════
+  FAIL_REASON: dump truncated — DAC not found for this build-id
+  Capture a full dump (see RUNBOOK.md § Troubleshooting).
+════════════════════════════════════════════════════════════

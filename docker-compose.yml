@@ -1,0 +1,80 @@
+# dotnet-autopsy — compose runs the per-case images. Each per-image image is
+# `FROM dotnet-autopsy-base`, so the SHARED BASE must be built first (a
+# local-image FROM that plain `docker compose build` does not orchestrate):
+#
+#   docker build -f common/base.dockerfile -t dotnet-autopsy-base .
+#   docker compose up -d                    # default → brings up sos (dump)
+#   docker compose --profile trace  up -d   # opt-in: trace sibling instead
+#   docker compose --profile gcdump up -d   # opt-in: gcdump sibling instead
+#   docker compose --profile all    up -d   # all three (only one wins :5550)
+#
+# (./build.sh and ./demo.sh do the base→image ordering for you.)
+#
+# Only ONE per-image container can be up at a time on a given host (all
+# bind :5550 by default). `sos` is the default service (no profile gate) so
+# `docker compose up` works without flags; trace + gcdump are opt-in via
+# --profile.
+services:
+  sos:
+    build:
+      context: .
+      dockerfile: sos/dotnet-sos.dockerfile
+      args:
+        DUMP_ARCH: "${DUMP_ARCH:-amd64}"
+        DUMP_FILE: "${DUMP_FILE:-core.dump}"
+        INNER_EXCEPTION_DEPTH: "${INNER_EXCEPTION_DEPTH:-9}"
+        SMOKE_TEST: "${SMOKE_TEST:-0}"
+    # Platform follows the DUMP_ARCH, NOT the build host.
+    # This prevents Apple Silicon (arm64) from silently building an arm64 image
+    # that cannot analyze an x64 dump (SOS/DAC are architecture-specific).
+    # See sos/RUNBOOK.md § "Platform follows the dump, not your laptop."
+    platform: "linux/${DUMP_ARCH:-amd64}"
+    image: dotnet-autopsy-sos
+    container_name: dotnet-autopsy-sos
+    restart: on-failure
+    # NO `profiles:` here on purpose — sos is the default service so
+    # `docker compose up` (no flags) brings it up. Trace is opt-in (below).
+    ports:
+      # Bind to 127.0.0.1 only — this image contains process memory (secrets/PII).
+      # Do NOT change to 0.0.0.0 or use --network host.
+      - "127.0.0.1:5550:5550"
+
+  trace:
+    build:
+      context: .
+      dockerfile: trace/dotnet-trace.dockerfile
+      args:
+        DUMP_ARCH: "${DUMP_ARCH:-amd64}"
+        TRACE_FILE: "${TRACE_FILE:-trace.nettrace}"
+        SMOKE_TEST: "${SMOKE_TEST:-0}"
+    # DUMP_ARCH is informational for trace (no DAC gate), but kept as the
+    # platform label for image consistency across siblings.
+    platform: "linux/${DUMP_ARCH:-amd64}"
+    image: dotnet-autopsy-trace
+    container_name: dotnet-autopsy-trace
+    restart: on-failure
+    profiles: ["trace","all"]
+    ports:
+      # Same 127.0.0.1-only bind; trace captures can also embed sensitive
+      # call sites / module paths. NOT 0.0.0.0; NOT --network host.
+      - "127.0.0.1:5550:5550"
+
+  gcdump:
+    build:
+      context: .
+      dockerfile: gcdump/dotnet-gcdump.dockerfile
+      args:
+        DUMP_ARCH: "${DUMP_ARCH:-amd64}"
+        GCDUMP_FILE: "${GCDUMP_FILE:-heap.gcdump}"
+        SMOKE_TEST: "${SMOKE_TEST:-0}"
+    # DUMP_ARCH is informational for gcdump (no DAC gate). dotnet-gcdump report
+    # is arch-agnostic; we keep the label for image-family consistency.
+    platform: "linux/${DUMP_ARCH:-amd64}"
+    image: dotnet-autopsy-gcdump
+    container_name: dotnet-autopsy-gcdump
+    restart: on-failure
+    profiles: ["gcdump","all"]
+    ports:
+      # Same 127.0.0.1-only bind; gcdump contains heap object addresses and
+      # type names from the crashed process. NOT 0.0.0.0; NOT --network host.
+      - "127.0.0.1:5550:5550"
