@@ -6,7 +6,7 @@ name: Publish — dotnet-autopsy-base to GHCR
 # Per-case images (sos, trace, gcdump) are NOT published from CI — they
 # bake user-supplied dump/trace/gcdump captures (process memory + PII) and
 # the air-gapped default in README.md depends on them staying local-only.
-# Users `FROM ghcr.io/JanusMael/dotnet-autopsy-base:vX.Y.Z` and add their
+# Users `FROM ghcr.io/janusmael/dotnet-autopsy-base:vX.Y.Z` and add their
 # artifact in-place; that's the supported reuse path.
 #
 # Triggers:
@@ -27,8 +27,8 @@ name: Publish — dotnet-autopsy-base to GHCR
 #   - SLSA build-provenance attestation
 #
 # Verify before consuming:
-#   docker pull ghcr.io/JanusMael/dotnet-autopsy-base:vX.Y.Z
-#   cosign verify ghcr.io/JanusMael/dotnet-autopsy-base:vX.Y.Z \
+#   docker pull ghcr.io/janusmael/dotnet-autopsy-base:vX.Y.Z
+#   cosign verify ghcr.io/janusmael/dotnet-autopsy-base:vX.Y.Z \
 #       --certificate-identity-regexp 'https://github.com/.+/dotnet-.+/\.github/workflows/publish\.yml@refs/tags/v.+' \
 #       --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'
 
@@ -52,7 +52,9 @@ env:
   # GHCR namespace is hardcoded to the canonical repo so a fork doesn't
   # silently push to ghcr.io/<fork-owner>/. Override via env on a fork.
   REGISTRY: ghcr.io
-  IMAGE_NAME: JanusMael/dotnet-autopsy-base
+  # GHCR repo names MUST be all-lowercase (Docker registry constraint),
+  # even though the canonical GitHub owner is mixed-case "JanusMael".
+  IMAGE_NAME: janusmael/dotnet-autopsy-base
 
 permissions:
   contents: read           # checkout

@@ -29,10 +29,13 @@ are shared across the family.
 > image produced by this tool as a sensitive artifact. See
 > [Security](#security) for controls.
 
-Below is the **`dotnet-autopsy/sos`** quick start; for the per-sibling
-flows see **`trace/RUNBOOK.md`** (capturing a `.nettrace`, reading the
-report, dotnet-trace cheat-sheet) and **`gcdump/RUNBOOK.md`** (capturing
-a `.gcdump`, reading the heap report).
+A quick start for each sibling appears below — sos (Linux core dump),
+then trace (`.nettrace`), then gcdump (`.gcdump`). Full per-sibling
+docs live in **`sos/RUNBOOK.md`** (DAC/symbols, the SOS cheat-sheet,
+interactive delving), **`trace/RUNBOOK.md`** (capturing a `.nettrace`,
+TraceEvent depth, the dotnet-trace cheat-sheet), and
+**`gcdump/RUNBOOK.md`** (capturing a `.gcdump`, the heap report,
+re-running `dotnet-gcdump` interactively).
 
 ---
 
@@ -88,18 +91,101 @@ a `.gcdump`, reading the heap report).
 
 ---
 
+## Quick start (`dotnet-autopsy/trace`)
+
+1. Copy your `.nettrace` capture to the repo root:
+   ```sh
+   cp /path/to/trace.nettrace ./trace.nettrace
+   ```
+   No symbols or DAC needed — managed method names are baked into the
+   trace itself via EventPipe rundown.
+
+2. Build and start (trace is opt-in via `--profile` so it doesn't
+   collide with the default `sos` service on port 5550):
+   ```sh
+   docker compose --profile trace build trace
+   docker compose --profile trace up -d trace
+   ```
+
+   Or via the thin wrappers: `./build.sh trace` (CI-style) or
+   `./demo.sh trace` (persistent + idempotent — uses a synthetic
+   `.nettrace` if you don't have one to test with).
+
+3. Open the results in a browser:
+   ```
+   http://localhost:5550/analysis/analysis.md
+   ```
+   Plus a **speedscope JSON** at
+   `http://localhost:5550/analysis/trace.speedscope.json` — open in
+   <https://www.speedscope.app/> for an interactive flame graph.
+   `analysis.md` shows top CPU stacks, GC summary, exception counts,
+   and runtime version (all via TraceEvent).
+
+4. To dive deeper interactively:
+   ```sh
+   docker exec -it dotnet-autopsy-trace bash
+   dotnet-trace report $CASE_TRACE topN -n 30
+   dotnet-trace convert $CASE_TRACE --format speedscope
+   ```
+
+See **`trace/RUNBOOK.md`** for the full flow (capturing the trace at
+the source, TraceEvent provider details, when GC pauses vs. exception
+storms vs. thread-pool starvation point at different root causes).
+
+---
+
+## Quick start (`dotnet-autopsy/gcdump`)
+
+1. Copy your `.gcdump` snapshot to the repo root:
+   ```sh
+   cp /path/to/heap.gcdump ./heap.gcdump
+   ```
+   Gcdumps are **architecture-portable** and need no DAC or symbols —
+   the type-name table is part of the file format.
+
+2. Build and start (gcdump is opt-in via `--profile`):
+   ```sh
+   docker compose --profile gcdump build gcdump
+   docker compose --profile gcdump up -d gcdump
+   ```
+
+   Or `./build.sh gcdump` / `./demo.sh gcdump` (the demo generates a
+   synthetic 68 MB heap if you don't have a `.gcdump` to test with).
+
+3. Open the results in a browser:
+   ```
+   http://localhost:5550/analysis/analysis.md
+   ```
+   The **TOP TYPES BY SIZE** section ranks heap occupants by bytes — the
+   first place to look when answering *"why is this process holding
+   N GB of managed memory?"*.
+
+4. To re-run the report interactively:
+   ```sh
+   docker exec -it dotnet-autopsy-gcdump bash
+   dotnet-gcdump report $CASE_GCDUMP | head -30
+   ```
+
+See **`gcdump/RUNBOOK.md`** for the full flow (capturing a snapshot
+from a live process via `dotnet-gcdump collect`, reading the heap
+heuristics).
+
+---
+
 ## Build arguments
 
-| Arg | Default | Purpose |
-|---|---|---|
-| `DUMP_FILE` | `core.dump` | Dump filename in the repo root |
-| `DUMP_ARCH` | `amd64` | Dump CPU architecture: `amd64` or `arm64`. **Must match the dump, not your laptop.** |
-| `INNER_EXCEPTION_DEPTH` | `9` | Max wrapped-inner-exception expansion passes (FailFast / `AggregateException` unwrap). Raise for deeply-nested chains; `0` disables. Each pass reloads the dump. |
-| `DOTNET_SDK_IMAGE` | `mcr.microsoft.com/dotnet/sdk:10.0` | Base image. Override to match the dump's OS (e.g. `…sdk:10.0-jammy`) |
-| `FILESERVER_VERSION` | `latest` | File server release tag — pin for reproducibility (e.g. `v2026.2.515`) |
-| `DOTNET_MONITOR_VERSION` | `9.0.0` | dotnet-monitor tool version — **pinned** (its release cadence is independent of the SDK; unpinned installs are unreliable) |
-| `FRESH_VERSION` | `v0.3.6` | Fresh terminal-editor release tag — **pinned**, static musl binary fetched + sha256-verified at build |
-| `SMOKE_TEST` | `0` | Set to `1` to run an end-to-end toolchain smoke test at build |
+| Arg | Default | Image | Purpose |
+|---|---|---|---|
+| `DUMP_FILE` | `core.dump` | sos | Core-dump filename in the repo root |
+| `TRACE_FILE` | `trace.nettrace` | trace | `.nettrace` filename in the repo root |
+| `GCDUMP_FILE` | `heap.gcdump` | gcdump | `.gcdump` filename in the repo root |
+| `DUMP_ARCH` | `amd64` | all | Artifact CPU architecture: `amd64` or `arm64`. **Must match the artifact, not your laptop.** For trace and gcdump it's informational (those formats are portable); for sos it's a hard gate (DAC cannot cross-analyze). |
+| `INNER_EXCEPTION_DEPTH` | `9` | sos | Max wrapped-inner-exception expansion passes (FailFast / `AggregateException` unwrap). Raise for deeply-nested chains; `0` disables. Each pass reloads the dump. |
+| `DOTNET_SDK_IMAGE` | `mcr.microsoft.com/dotnet/sdk:10.0` | all | Base image. Override to match the artifact's OS (e.g. `…sdk:10.0-jammy`) |
+| `FILESERVER_VERSION` | `latest` | all | File server release tag — pin for reproducibility (e.g. `v2026.2.515`) |
+| `DOTNET_MONITOR_VERSION` | `9.0.0` | all | dotnet-monitor tool version — **pinned** (its release cadence is independent of the SDK; unpinned installs are unreliable) |
+| `FRESH_VERSION` | `v0.3.6` | all | Fresh terminal-editor release tag — **pinned**, static musl binary fetched + sha256-verified at build |
+| `SMOKE_TEST` | `0` | all | Set to `1` to run an end-to-end toolchain smoke test at build |
 
 Example with custom args:
 ```sh
@@ -312,7 +398,7 @@ base tag change.
 
 ---
 
-## Published base image (`ghcr.io/JanusMael/dotnet-autopsy-base`)
+## Published base image (`ghcr.io/janusmael/dotnet-autopsy-base`)
 
 The shared toolchain — `dotnet-autopsy-base` — is published to GitHub
 Container Registry on every release tag (multi-arch amd64/arm64, signed
@@ -326,10 +412,10 @@ Consume the published base in your own per-case Dockerfile:
 
 ```dockerfile
 # Pin by tag for reproducibility…
-FROM ghcr.io/JanusMael/dotnet-autopsy-base:v1.0.0
+FROM ghcr.io/janusmael/dotnet-autopsy-base:v1.0.0
 
 # …or by digest for cryptographic certainty (recommended for prod):
-# FROM ghcr.io/JanusMael/dotnet-autopsy-base@sha256:<DIGEST>
+# FROM ghcr.io/janusmael/dotnet-autopsy-base@sha256:<DIGEST>
 
 COPY my.dump /analysis/my.dump
 RUN /opt/analyze.sh   # or analyze-trace.sh / analyze-gcdump.sh
@@ -338,15 +424,15 @@ RUN /opt/analyze.sh   # or analyze-trace.sh / analyze-gcdump.sh
 Verify the signature and SBOM before consuming:
 
 ```sh
-docker pull ghcr.io/JanusMael/dotnet-autopsy-base:v1.0.0
+docker pull ghcr.io/janusmael/dotnet-autopsy-base:v1.0.0
 
 # Verify keyless-OIDC signature
-cosign verify ghcr.io/JanusMael/dotnet-autopsy-base:v1.0.0 \
+cosign verify ghcr.io/janusmael/dotnet-autopsy-base:v1.0.0 \
   --certificate-identity-regexp 'https://github.com/.+/dotnet-.+/\.github/workflows/publish\.yml@refs/tags/v.+' \
   --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'
 
 # Extract the SBOM attestation
-cosign download attestation ghcr.io/JanusMael/dotnet-autopsy-base:v1.0.0 \
+cosign download attestation ghcr.io/janusmael/dotnet-autopsy-base:v1.0.0 \
   --predicate-type=https://cyclonedx.org/bom \
   | jq -r .payload | base64 -d | jq .predicate > base.cyclonedx.json
 ```

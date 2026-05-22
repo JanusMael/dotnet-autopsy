@@ -87,7 +87,7 @@ Releases are **fully tag-driven**: pushing an annotated `vX.Y.Z` tag to
 the repo triggers `.github/workflows/publish.yml`, which builds the
 `dotnet-autopsy-base` image for amd64 + arm64, signs it with cosign
 keyless OIDC, attaches a CycloneDX SBOM, attests SLSA build provenance,
-and pushes the multi-arch manifest to GHCR (`ghcr.io/JanusMael/dotnet-autopsy-base`).
+and pushes the multi-arch manifest to GHCR (`ghcr.io/janusmael/dotnet-autopsy-base`).
 Moving `:latest` happens automatically on tag pushes (not on
 `workflow_dispatch`).
 
@@ -142,8 +142,8 @@ gh run watch              # or open the Actions tab
 #     ~10–15 min: per-arch builds → manifest → cosign + SBOM + SLSA
 
 # 8.  Verify the published artifact
-docker pull ghcr.io/JanusMael/dotnet-autopsy-base:vX.Y.Z
-cosign verify ghcr.io/JanusMael/dotnet-autopsy-base:vX.Y.Z \
+docker pull ghcr.io/janusmael/dotnet-autopsy-base:vX.Y.Z
+cosign verify ghcr.io/janusmael/dotnet-autopsy-base:vX.Y.Z \
   --certificate-identity-regexp 'https://github.com/.+/dotnet-.+/\.github/workflows/publish\.yml@refs/tags/v.+' \
   --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'
 
@@ -170,8 +170,8 @@ There's no automated rollback. To recover from a bad release:
 
 1. **Move `:latest` back to the previous good tag manually:**
    ```sh
-   docker buildx imagetools create -t ghcr.io/JanusMael/dotnet-autopsy-base:latest \
-     ghcr.io/JanusMael/dotnet-autopsy-base:vX.Y.Z-prev
+   docker buildx imagetools create -t ghcr.io/janusmael/dotnet-autopsy-base:latest \
+     ghcr.io/janusmael/dotnet-autopsy-base:vX.Y.Z-prev
    ```
 2. **Do not delete the bad tag** — published cosign signatures and SBOM
    attestations reference its digest. Cut a new patch release
