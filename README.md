@@ -24,6 +24,13 @@ plus the artifact-specific analysis. The same `analysis.md` rendering,
 `json-get` status reader, parity GOLDEN gate, and MOTD/sources scaffolding
 are shared across the family.
 
+**Base image flavors:** Microsoft's .NET SDK image (`mcr.microsoft.com/dotnet/sdk:10.0`)
+is the supported default — that's the path the parity GOLDEN gate covers.
+The base is intentionally a swap point; see
+[Adapting the base image](#adapting-the-base-image) for the general
+approach and [Chainguard / Wolfi (supported automated adaptation)](#chainguard--wolfi-supported-automated-adaptation)
+for the one shipped automation.
+
 > **Security note:** every captured artifact contains process memory or
 > stack samples — secrets, tokens, PII, internal call sites. Treat every
 > image produced by this tool as a sensitive artifact. See
@@ -361,31 +368,99 @@ full mechanics.
 
 ## Adapting the base image
 
-The package-install block in `sos/dotnet-sos.dockerfile` is the main change needed
-to swap base images. The DAC is downloaded by build-ID and is independent of the
-base image version [[³]](#references). The .NET tools — including PowerShell
-(`pwsh`), installed via `dotnet tool install` — are base-image-independent too.
-The only other base-dependent spot is the **login-shell PATH snippet** (see
-point 6 below): `ENV PATH=/opt/bin:$PATH` is portable (Docker injects it into
-every `docker exec`), but the `/etc/profile.d` + `~/.bashrc` hardening that
-keeps `/opt/bin` on PATH for *login* shells is Debian/bash/root-specific.
+The canonical default is `mcr.microsoft.com/dotnet/sdk:10.0` — the path
+the parity GOLDEN gate covers. But the base image is intentionally a
+**swap point**: real teams ship images on whatever distro their security
+/ procurement / compliance stack mandates (Chainguard / Wolfi, Red Hat
+UBI, Ubuntu LTS variants, Azure Linux, Alpine, Amazon Linux, internal
+hardened distros…), and dotnet-autopsy was designed to be portable
+across them.
 
-**Chainguard / Wolfi:**
-1. Change `DOTNET_SDK_IMAGE` to a Chainguard .NET SDK image.
-2. Replace the `apt-get` block with `apk add --no-cache lldb gdb ...`
-   (package names are the same on Wolfi).
-3. Use the `-dev` variant — distroless images have no shell, which breaks
-   interactive delving.
+Two adaptation paths are supported:
+
+| Path | Use when… |
+|---|---|
+| **[Chainguard / Wolfi](#chainguard--wolfi-supported-automated-adaptation)** *(automated; shipped in this repo)* | Your org standardizes on Chainguard. One command builds it — `./chainguard/build.sh`. |
+| **[Manual adaptation checklist](#manual-adaptation-checklist-other-distros)** | Any other distro. Six small edits to `common/base.dockerfile` (or a sibling Dockerfile). |
+
+**Common to both paths.** The package-install block in
+`common/base.dockerfile` is the main thing that changes when swapping
+base images. The DAC is downloaded by build-ID and is independent of
+the base image version [[³]](#references). The .NET tools — including
+PowerShell (`pwsh`), installed via `dotnet tool install` — are
+base-image-independent too. The only other base-dependent spot is the
+**login-shell PATH snippet**: `ENV PATH=/opt/bin:$PATH` is portable
+(Docker injects it into every `docker exec`), but the `/etc/profile.d` +
+`~/.bashrc` hardening that keeps `/opt/bin` on PATH for *login* shells
+is Debian/bash/root-specific.
+
+### Chainguard / Wolfi (supported automated adaptation)
+
+If your organization standardizes on **Chainguard**'s supply chain
+(Wolfi base images, signed APKs, distroless production runtimes),
+dotnet-autopsy ships a ready-to-build implementation of the
+adaptation flow. The generated dockerfile is **committed** to the repo
+(`chainguard/base.dockerfile`), so a fresh clone can build immediately
+— no generator step required:
+
+```sh
+# Bash / WSL
+./chainguard/build.sh              # build the Chainguard base
+./chainguard/build.sh sos          # base + sos per-case image
+
+# Windows / PowerShell
+.\chainguard\build.ps1
+.\chainguard\build.ps1 sos
+```
+
+(`chainguard/generate.sh` is a *maintenance* tool — maintainers run it
+when `common/base.dockerfile` changes upstream, regenerate
+`chainguard/base.dockerfile`, and commit. See
+[`chainguard/README.md` § Two flows](chainguard/README.md#two-flows-user-vs-maintainer).)
+
+The wrappers tag the result as `dotnet-autopsy-base` — the same tag the
+canonical pipeline produces — so all three per-image flows (`sos`,
+`trace`, `gcdump`) work on top of it unchanged. **Full instructions,
+caveats (lldb on the free Chainguard feed, the `DOTNET_ROLL_FORWARD`
+shim for `dotnet-monitor`), and the regeneration workflow live in
+[`chainguard/README.md`](chainguard/README.md).**
+
+Mechanically, the Chainguard adaptation is just the manual checklist
+below applied automatically: `chainguard/generate.sh` reads
+`common/base.dockerfile` and emits a Wolfi-flavored variant with
+`apt-get` → `apk add`, `USER root` after `FROM`, and a few env shims.
+Use it as a worked example if you're adapting to a different distro.
+
+The Chainguard variant is intentionally **additive**: the canonical
+Microsoft-SDK base remains the supported, parity-gated default, and a
+CI guard (`.github/workflows/chainguard-isolation.yml`) prevents
+chainguard changes from bleeding into the canonical pipeline.
+
+### Manual adaptation checklist (other distros)
+
+For any distro without a shipped automation here — Ubuntu
+`-jammy`/`-noble`, Azure Linux, Alpine, Red Hat UBI, Amazon Linux,
+internal hardened bases — apply this checklist directly to
+`common/base.dockerfile` (or a sibling Dockerfile). The Chainguard
+generator implements exactly these steps; you can crib from
+`chainguard/generate.sh` as a worked example.
+
+1. Change `DOTNET_SDK_IMAGE` to the distro's .NET SDK image.
+2. Replace the `apt-get` block with the distro's package manager
+   (`apk add`, `dnf install`, `microdnf install`, …) — package names
+   are usually the same.
+3. Use a development variant — distroless images have no shell, which
+   breaks interactive delving.
 4. Add `USER root` before build steps if the base runs as `nonroot`.
 5. Pin by image digest for reproducibility.
 6. **PATH for login shells.** `ENV PATH=/opt/bin:$PATH` already makes `pwsh`
    and the `dotnet-*` tools resolve for the documented
    `docker exec -it … bash` (non-login) on any base. The extra hardening for
    *login* shells (`bash -l`, `sh -lc`) is Debian-specific and needs review on
-   Wolfi:
+   minimal/non-Debian distros:
    - `/etc/profile.d/dotnet-autopsy.sh` only helps if the base's `/etc/profile`
      exists and sources `/etc/profile.d/*.sh` — verify this on the chosen
-     `-dev` image (minimal images may omit it, or use busybox `sh` whose
+     image (minimal images may omit it, or use busybox `sh` whose
      login behavior differs).
    - `/root/.bashrc` only applies to a root + bash runtime. If you keep the
      image `nonroot`, write that PATH/MOTD snippet to the runtime user's home
@@ -393,8 +468,10 @@ keeps `/opt/bin` on PATH for *login* shells is Debian/bash/root-specific.
    - Keep the `ENV PATH=/opt/bin:$PATH` line regardless — it is the portable
      part and is what the smoke/rot-check assertions rely on.
 
-Same swap for Ubuntu `-jammy`/`-noble` or Azure Linux: only the apt block and
-base tag change.
+If your distro becomes a recurring target, consider contributing a
+sibling automation alongside `chainguard/` — model on
+`chainguard/generate.sh` (input: canonical dockerfile; output: distro-
+flavored variant).
 
 ---
 

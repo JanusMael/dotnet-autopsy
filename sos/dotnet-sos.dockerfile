@@ -166,6 +166,10 @@ RUN cat > /analysis/.motd << 'MOTD'
                  Simplest path, needs NO app binary.  ← recommended
 
     delve-lldb   lldb + SOS (same SOS commands, native-debugger host).
+                 Requires lldb — always present on the canonical Microsoft
+                 .NET SDK base; absent on the Chainguard / Wolfi free-tier
+                 variant (the wrapper detects this and prints clear
+                 guidance pointing back to `delve`).
                  lldb needs the executable that produced the core; this
                  wrapper finds it automatically from the dump's recorded
                  path. Framework-dependent apps (run as `dotnet App.dll`)
@@ -195,8 +199,9 @@ RUN cat > /analysis/.motd << 'MOTD'
     .NET / SDK  dotnet (full SDK — build & repro), dotnet-dump, dotnet-sos,
                 dotnet-trace, dotnet-counters, dotnet-gcdump, dotnet-stack,
                 dotnet-symbol, dotnet-monitor (installed, not run)
-    Native/ELF  lldb, gdb, eu-unstrip, eu-readelf, eu-stack, addr2line,
-                objdump, nm, readelf, strings, file
+    Native/ELF  lldb (canonical base; may be absent on Chainguard), gdb,
+                eu-unstrip, eu-readelf, eu-stack, addr2line, objdump, nm,
+                readelf, strings, file
     Scripting   pwsh  — PowerShell 7 (automate triage, parse analysis.txt)
     Editor      fresh — full terminal editor   ·   nano — minimal fallback
     Monitor     btop  ·  top  ·  ps   (watch the analysis workload)

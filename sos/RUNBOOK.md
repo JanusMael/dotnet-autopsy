@@ -237,6 +237,15 @@ diagnostic header. Use it for most cases.
 
 ### lldb + SOS — use the `delve-lldb` wrapper
 
+> **Requires lldb in the image.** lldb is always present on the canonical
+> Microsoft .NET SDK base. On the **Chainguard / Wolfi free-tier variant**
+> lldb is *not* installed (the public apk feeds do not ship it; only the
+> paid Chainguard Production tier does). If you run `delve-lldb` on a
+> Chainguard image, the wrapper detects the absence and prints clear
+> guidance pointing you back to `delve`. Use `delve` (`dotnet-dump
+> analyze`) on the Chainguard variant — it supports the same SOS commands
+> and needs no native debugger.
+
 lldb + SOS **does** work for managed analysis (`clrthreads`, `clrstack`, `pe`,
 …). The one requirement is the same as for any core file with gdb: **lldb
 needs the executable that produced the dump.** A bare `lldb -c <dump>` fails

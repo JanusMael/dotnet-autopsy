@@ -74,6 +74,23 @@ The three existing siblings (`sos`, `trace`, `gcdump`) establish the pattern:
 Wire into `build.sh`, `build.ps1`, `docker-compose.yml`, `demo.sh`, `smoke.sh`,
 `rot-check.yml`, and `README.md`. Add a profile to `common/analysis_md.cs`.
 
+## Chainguard adaptation — kept isolated
+
+The `chainguard/` directory (Wolfi/musl variant) is **intentionally additive**:
+it is a transformation of `common/base.dockerfile`, not a replacement, and
+the parity GOLDEN gate covers only the canonical Microsoft-SDK base. To keep
+the two paths honest, a CI check (`.github/workflows/chainguard-isolation.yml`)
+fails any PR that modifies `chainguard/` **and** touches the canonical
+pipeline paths:
+
+- `common/**`, `sos/**`, `trace/**`, `gcdump/**`
+- `build.sh`, `build.ps1`, `demo.sh`, `smoke.sh`, `docker-compose.yml`
+
+If a change genuinely spans both, land them as two PRs: the canonical-side
+change first (parity gate re-verifies), then the chainguard regen on top.
+Top-level docs (`README.md`, `CHANGELOG.md`, etc.) and the `.github/` directory
+remain freely co-editable with `chainguard/`.
+
 ## Commit style
 
 - Prefer new commits over amend.

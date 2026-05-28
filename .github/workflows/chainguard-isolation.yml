@@ -1,0 +1,99 @@
+name: Chainguard isolation guard
+
+# Belt-and-braces: ensure a PR that modifies chainguard/ doesn't also modify
+# the canonical pipeline paths in the same change.
+#
+# Why: chainguard/ is intentionally additive. The canonical Microsoft-SDK
+# base (common/base.dockerfile + per-image dockerfiles + parity fixtures /
+# goldens) is the contract the parity GOLDEN gate proves byte-stable. A
+# combined PR that touches both risks masking parity drift behind a "this
+# was a chainguard change" framing. Forcing separation makes each change
+# reviewable on its own terms.
+#
+# Allowed alongside chainguard/ changes:
+#   - top-level docs (README.md, CHANGELOG.md, CONTRIBUTING.md, …)
+#   - .github/** (workflow tweaks)
+#   - root LICENSE / SECURITY.md / .gitattributes / .gitignore / .dockerignore
+#
+# Forbidden alongside chainguard/ changes:
+#   - common/**  (the SOURCE the chainguard generator reads + shared libs +
+#                 parity harness)
+#   - sos/**, trace/**, gcdump/**  (per-image canonical pipelines + their
+#                                    parity fixtures and goldens)
+#   - the root orchestration scripts (build.sh, build.ps1, demo.sh,
+#                                      smoke.sh, docker-compose.yml)
+#
+# If a change genuinely needs to span both, split it into two PRs: land
+# the canonical-side change first (parity gate re-verifies), then the
+# chainguard regen on top.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  isolation:
+    name: chainguard/ touches do not bleed into canonical paths
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (full history for diff)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Enforce chainguard isolation
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+
+          # All files changed in the PR vs the merge base on the target branch.
+          # Using `merge-base` rather than `origin/${BASE_REF}...HEAD` is safer
+          # against force-pushes on the PR branch.
+          MERGE_BASE=$(git merge-base "origin/${BASE_REF}" HEAD)
+          mapfile -t CHANGED < <(git diff --name-only "${MERGE_BASE}" HEAD)
+
+          printf 'Changed files in this PR:\n'
+          printf '  %s\n' "${CHANGED[@]}"
+          printf '\n'
+
+          # Did this PR touch chainguard/ at all?
+          touched_chainguard=0
+          for f in "${CHANGED[@]}"; do
+              case "$f" in chainguard/*) touched_chainguard=1; break ;; esac
+          done
+
+          if [ "${touched_chainguard}" -eq 0 ]; then
+              printf 'No chainguard/ file modified — isolation guard not applicable.\n'
+              exit 0
+          fi
+
+          # Now check whether any canonical pipeline path was ALSO touched.
+          canonical=()
+          for f in "${CHANGED[@]}"; do
+              case "$f" in
+                  common/*|sos/*|trace/*|gcdump/*)
+                      canonical+=("$f") ;;
+                  build.sh|build.ps1|demo.sh|smoke.sh|docker-compose.yml)
+                      canonical+=("$f") ;;
+              esac
+          done
+
+          if [ "${#canonical[@]}" -eq 0 ]; then
+              printf 'OK: chainguard/ change does not touch canonical pipeline paths.\n'
+              exit 0
+          fi
+
+          printf 'ERROR: this PR touches chainguard/ AND canonical pipeline paths.\n' >&2
+          printf '       chainguard/ is intentionally additive; combined PRs risk\n'  >&2
+          printf '       masking parity drift. Split this into two PRs:\n'             >&2
+          printf '         1. The canonical-side change (parity gate verifies).\n'    >&2
+          printf '         2. The chainguard regen on top of the merged canonical.\n' >&2
+          printf '\n'                                                                  >&2
+          printf '       Canonical paths touched in this PR:\n'                        >&2
+          printf '         %s\n' "${canonical[@]}"                                     >&2
+          exit 1

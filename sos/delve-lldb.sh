@@ -21,6 +21,35 @@
 
 set -u
 
+# Pre-flight: lldb must be on PATH. On the canonical Microsoft .NET SDK
+# base it always is; on the Chainguard / Wolfi free-tier variant the
+# public apk feeds do not ship lldb, so this wrapper is unavailable.
+# Print clear guidance pointing at `delve` (dotnet-dump) and exit cleanly
+# rather than letting `exec lldb ...` fall through to a confusing
+# "command not found".
+if ! command -v lldb >/dev/null 2>&1; then
+    cat >&2 <<'NOLLDB'
+delve-lldb: lldb is not installed on this image.
+
+  Your base image variant does not ship lldb. lldb is always present on
+  the canonical Microsoft .NET SDK base; on Chainguard / Wolfi the free
+  apk feeds do not include lldb (only the paid Chainguard Production
+  feed does). See top-level README "Adapting the base image" for the
+  variant matrix.
+
+  Use 'delve' instead — it wraps `dotnet-dump analyze`, supports the
+  same SOS commands (clrthreads, clrstack, pe, dumpheap -stat, gcroot,
+  syncblk, threadpool, ...), and needs no native debugger:
+
+      delve
+
+  delve is the recommended managed-analysis path even when lldb is
+  available; raw lldb + SOS is the secondary path for cases where you
+  need lldb-specific features.
+NOLLDB
+    exit 1
+fi
+
 DUMP="${CASE_DUMP:-/analysis/core.dump}"
 if [ "$#" -gt 0 ]; then
     case "$1" in

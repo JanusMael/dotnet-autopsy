@@ -40,7 +40,12 @@ echo "  Raw analysis     : ${CASE_OUTPUT}  (authoritative; ?raw=1 for md source)
 echo "  Browse results   : http://localhost:5550/"
 echo "  Interactive shell: docker exec -it <container> bash"
 echo "  Quick analysis   : docker exec -it <container> delve       (dotnet-dump)"
-echo "                     docker exec -it <container> delve-lldb  (lldb + SOS)"
+if command -v lldb >/dev/null 2>&1; then
+    echo "                     docker exec -it <container> delve-lldb  (lldb + SOS)"
+else
+    echo "                     delve-lldb (lldb + SOS) — lldb absent on this image;"
+    echo "                       use 'delve' (above) which needs no native debugger"
+fi
 echo ""
 echo "──────────────────────────────────────────────────────────"
 echo ""
