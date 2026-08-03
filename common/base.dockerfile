@@ -62,6 +62,19 @@ ENV DOTNET_SDK_IMAGE=${DOTNET_SDK_IMAGE}
 ENV DOTNET_PerfMapEnabled=1
 ENV DOTNET_EnableEventLog=1
 
+# Roll forward across MAJOR runtime versions. This image floats every tool to
+# newest, but dotnet-monitor is PINNED (its cadence is independent of the SDK).
+# The pin targets a specific major's runtime; once the base SDK image advances
+# and stops shipping that older major side-by-side, a framework-dependent tool
+# built for it fails to launch with the .NET host's "framework not found" error
+# (process exit code 150). Major roll-forward lets such a tool run on the newer
+# runtime that IS present — exactly the rot-resilience this image is built for.
+# Report apps (analysis_md, json-get, the per-image triage apps) target the
+# current major, so they exact-match first and roll-forward never engages —
+# the parity GOLDEN output is unaffected (and parity runs outside the image
+# anyway, where this env is not set).
+ENV DOTNET_ROLL_FORWARD=Major
+
 # ── Analysis environment ───────────────────────────────────────────────────────
 ENV FILE_SERVER_DIR=/fileserver
 ENV FILES_DIR=/analysis
@@ -110,8 +123,12 @@ RUN apt-get update \
 # dotnet-monitor is installed (NOT run as a service — this is a post-mortem
 # container with no live target app) for ad-hoc interactive use. It is the
 # one PINNED tool: its release cadence is independent of the SDK and an
-# unpinned install is unreliable. ${DOTNET_MONITOR_VERSION} is verified to
-# install and run on the base image; override via --build-arg.
+# unpinned install is unreliable. Override via --build-arg. Because it is
+# pinned to a specific major, it relies on the DOTNET_ROLL_FORWARD=Major env
+# set above to keep launching once the base SDK image advances past that
+# major (see that block). Bumping ${DOTNET_MONITOR_VERSION} to a build that
+# natively targets the current runtime is the cleaner long-term fix when a
+# reliable version is confirmed.
 RUN dotnet tool install --tool-path /opt/bin dotnet-counters \
     && dotnet tool install --tool-path /opt/bin dotnet-dump \
     && dotnet tool install --tool-path /opt/bin dotnet-gcdump \
