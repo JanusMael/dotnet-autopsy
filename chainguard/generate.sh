@@ -125,25 +125,10 @@ BEGIN { in_apt = 0 }
     next
 }
 
-# (2b) After ENV DOTNET_EnableEventLog=1, insert DOTNET_ROLL_FORWARD=Major.
-# The pinned dotnet-monitor 9.0.0 targets Microsoft.NETCore.App 9.0.0-rc.2,
-# which is NOT shipped by cgr.dev/chainguard/dotnet-sdk:latest-dev (which
-# ships only .NET 10). The Microsoft SDK image has both 9.x and 10.x
-# runtimes side-by-side so this never surfaces there; on Chainguard the
-# host has only 10.x. DOTNET_ROLL_FORWARD=Major lets the .NET host satisfy
-# the dotnet-monitor framework reference with the available 10.x runtime
-# instead of failing at start with "framework version not found".
-/^ENV DOTNET_EnableEventLog=1$/ {
-    print
-    print ""
-    print "# Chainguard adaptation: roll forward across major framework versions so"
-    print "# dotnet-monitor 9.0.0 (which targets Microsoft.NETCore.App 9.0.0-rc) can"
-    print "# run on the .NET 10 runtime that Chainguard ships. Microsoft'\''s SDK"
-    print "# image keeps 9.x and 10.x runtimes side-by-side so this is never needed"
-    print "# there; Chainguard'\''s image is leaner and has 10.x only."
-    print "ENV DOTNET_ROLL_FORWARD=Major"
-    next
-}
+# NOTE: DOTNET_ROLL_FORWARD=Major is no longer inserted here — the canonical
+# common/base.dockerfile now sets it directly (the dotnet-monitor pin needs
+# it on the Microsoft SDK image too, once that image advances past the pinned
+# major). The Chainguard variant inherits it verbatim via passthrough.
 
 # (3a) Start of the apt-get block — emit the apk replacement, then swallow
 # all lines up to and including the trailing `rm -rf /var/lib/apt/lists/*`.

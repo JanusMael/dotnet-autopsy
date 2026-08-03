@@ -111,22 +111,10 @@ foreach ($line in $lines) {
         continue
     }
 
-    # (2b) After ENV DOTNET_EnableEventLog=1, insert DOTNET_ROLL_FORWARD=Major.
-    # The pinned dotnet-monitor 9.0.0 targets Microsoft.NETCore.App 9.0.0-rc.2
-    # which is NOT shipped by Chainguard SDK images (.NET 10 only). The
-    # Microsoft SDK image keeps 9.x and 10.x runtimes side-by-side so this is
-    # never needed there; on Chainguard the host has only 10.x.
-    if ($line -eq 'ENV DOTNET_EnableEventLog=1') {
-        $out.Add($line)
-        $out.Add('')
-        $out.Add('# Chainguard adaptation: roll forward across major framework versions so')
-        $out.Add('# dotnet-monitor 9.0.0 (which targets Microsoft.NETCore.App 9.0.0-rc) can')
-        $out.Add("# run on the .NET 10 runtime that Chainguard ships. Microsoft's SDK")
-        $out.Add('# image keeps 9.x and 10.x runtimes side-by-side so this is never needed')
-        $out.Add("# there; Chainguard's image is leaner and has 10.x only.")
-        $out.Add('ENV DOTNET_ROLL_FORWARD=Major')
-        continue
-    }
+    # NOTE: DOTNET_ROLL_FORWARD=Major is no longer inserted here — the
+    # canonical common/base.dockerfile now sets it directly (the dotnet-monitor
+    # pin needs it on the Microsoft SDK image too once that image advances past
+    # the pinned major). The Chainguard variant inherits it via passthrough.
 
     # (3a) Start of the apt-get block — emit the apk replacement, then swallow
     # The Chainguard curated feed omits lldb/btop; pull in the public Wolfi
