@@ -157,13 +157,14 @@ Pin by digest with:
   contain `lldb`.
 - **`dotnet-monitor`** is the one pinned global tool (default
   `9.0.0`). It targets the .NET 9 runtime, which Chainguard SDK images
-  do not ship (the Microsoft SDK image bundles both 9.x and 10.x runtimes
-  side-by-side; Chainguard ships only 10.x). The generated dockerfile
-  sets `ENV DOTNET_ROLL_FORWARD=Major` immediately after the existing
-  `DOTNET_EnableEventLog` env so the .NET host satisfies the 9.x
-  framework reference with the available 10.x runtime. To pin a 10-
-  native dotnet-monitor instead, pass `--build-arg DOTNET_MONITOR_VERSION=<v>`
-  to `./chainguard/build.sh`.
+  do not ship (they're .NET 10 only). This is handled by the
+  **canonical** base's `ENV DOTNET_ROLL_FORWARD=Major` (the Microsoft
+  SDK image hit the same problem once it advanced past the pinned
+  major, so the roll-forward now lives in `common/base.dockerfile` and
+  the Chainguard variant inherits it verbatim). The .NET host then
+  satisfies the 9.x framework reference with the available 10.x
+  runtime. To pin a 10-native dotnet-monitor instead, pass
+  `--build-arg DOTNET_MONITOR_VERSION=<v>` to `./chainguard/build.sh`.
 - **Fresh editor** is a static `musl` binary — works on Wolfi
   unchanged.
 - **File server** is a self-contained linux-{x64,arm64} binary — works
