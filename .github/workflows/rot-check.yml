@@ -50,13 +50,24 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Primary: linux/amd64 (most production dumps are x64; native on runners)
+          # Primary: linux/amd64 (most production dumps are x64; native on
+          # runners). Full end-to-end: in-image SMOKE_TEST createdump chain +
+          # runtime analysis assertions.
           - arch: amd64
             required: true
-          # Secondary: linux/arm64 (Graviton/ARM prod). Informational — allowed to fail
-          # because GitHub's ubuntu-latest runners use QEMU for arm64 and are slow.
+            smoke: 1
+          # Secondary: linux/arm64 (Graviton/ARM prod). BUILD-ONLY under QEMU.
+          # GitHub's ubuntu-latest runners emulate arm64 via QEMU user-mode,
+          # which cannot do the createdump ptrace/process-memory work the
+          # in-image SMOKE_TEST needs — and the dump we bake is generated x64
+          # on the native runner, so analyzing it inside an arm64 image is an
+          # arch mismatch anyway. So arm64 verifies the image *builds*
+          # cross-platform (the real arch signal) with SMOKE_TEST off, and the
+          # runtime/analysis steps below are gated to amd64. Still informational
+          # (required:false) as a backstop for QEMU flakiness in the build.
           - arch: arm64
             required: false
+            smoke: 0
 
     continue-on-error: ${{ !matrix.required }}
 
@@ -103,7 +114,9 @@ jobs:
           fi
           echo "Dump created: $(stat -c%s "${{ github.workspace }}/core.dump") bytes"
 
-      - name: Build image (SMOKE_TEST=1, no pins)
+      - name: Build image (SMOKE_TEST=${{ matrix.smoke }}, no pins)
+        # amd64: SMOKE_TEST=1 runs the full in-image createdump chain.
+        # arm64: SMOKE_TEST=0 — build-verify only (QEMU can't run createdump).
         run: |
           docker build \
             --platform linux/${{ matrix.arch }} \
@@ -117,12 +130,16 @@ jobs:
             -f sos/dotnet-sos.dockerfile \
             -t dotnet-autopsy-sos-rot-check \
             --build-arg DUMP_ARCH=${{ matrix.arch }} \
-            --build-arg SMOKE_TEST=1 \
+            --build-arg SMOKE_TEST=${{ matrix.smoke }} \
             --build-arg DUMP_FILE=core.dump \
             --progress=plain \
             .
 
       - name: Start container
+        # amd64 only — arm64 is build-only (see matrix comment). The baked
+        # dump is x64; running the analysis inside an arm64 image would arch-
+        # mismatch (status=failed) and QEMU can't drive it regardless.
+        if: matrix.arch == 'amd64'
         run: |
           docker run -d \
             --platform linux/${{ matrix.arch }} \
@@ -139,6 +156,8 @@ jobs:
           done
 
       - name: Check analysis output
+        # amd64 only — depends on the container started above.
+        if: matrix.arch == 'amd64'
         run: |
           # analysis.txt must exist and contain useful content
           docker exec dotnet-autopsy-sos-rot-check bash -c \
@@ -164,7 +183,8 @@ jobs:
           echo "${PWSH}" | grep -qE "^[0-9]+\." || (echo "ERROR: pwsh not working" && exit 1)
 
       - name: Print triage summary (for visibility in CI log)
-        if: always()
+        # amd64 only — no container is started on arm64 (build-only).
+        if: always() && matrix.arch == 'amd64'
         run: |
           docker exec dotnet-autopsy-sos-rot-check head -60 /analysis/analysis.txt 2>/dev/null || true
 
