@@ -127,6 +127,33 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Pre-warm Microsoft Container Registry. MCR occasionally returns a
+      # transient 403/429 on the dotnet/sdk:10.0 manifest lookup from
+      # GitHub-hosted runners (shared IPs hit anonymous rate limits /
+      # bot-detection heuristics). Without this, the buildx step fails fast
+      # on the first miss; with it, we retry the same code path buildx uses
+      # (docker buildx imagetools inspect) with exponential backoff.
+      #
+      # If MCR is genuinely down for >5 attempts (~3 min of backoff), we
+      # still fail — but loud, with a clear reason rather than mid-build.
+      - name: Pre-warm MCR (transient 403/429 mitigation)
+        run: |
+          set -euo pipefail
+          REF="mcr.microsoft.com/dotnet/sdk:10.0"
+          for attempt in 1 2 3 4 5; do
+              if docker buildx imagetools inspect --raw "$REF" >/dev/null 2>&1; then
+                  echo "MCR reachable on attempt ${attempt} (${REF})"
+                  exit 0
+              fi
+              delay=$((attempt * 30))
+              echo "MCR returned non-success for ${REF} (attempt ${attempt}/5);"
+              echo "  waiting ${delay}s before retry..."
+              sleep "${delay}"
+          done
+          echo "ERROR: MCR unreachable for ${REF} after 5 attempts." >&2
+          echo "       This is usually transient — re-run the workflow." >&2
+          exit 1
+
       - name: Build (and push if not dry-run) ${{ matrix.arch }}
         uses: docker/build-push-action@v6
         with:
