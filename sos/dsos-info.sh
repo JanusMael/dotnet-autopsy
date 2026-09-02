@@ -27,13 +27,14 @@ ver() {
 }
 
 hdr "FILE SERVER"
-# RELEASE.txt is the authoritative (and only reliable) version record:
-# written at build time from the pinned release — FILESERVER_REPO/_VERSION
-# → repo/version/asset/source_url/downloaded_at. The binary itself is a
-# self-contained single-file ELF apphost: its managed assemblies are bundled
-# inside the native host, so no AssemblyVersion / PE FileVersionInfo is
-# readable from it, and the server exposes no version/about endpoint. Do not
-# re-add a binary-probing fallback here — there is nothing in the file to read.
+# RELEASE.txt is the authoritative version record, written at build time by
+# common/base.dockerfile from the NuGet publish: package / version (the one
+# that actually RESOLVED — meaningful even when the build floated to newest
+# via FILESERVER_VERSION=latest) / requested / source / repo / host /
+# published_at. The host is a framework-dependent ASP.NET Core app
+# (common/FileServerHost) around the Bennewitz.Ninja.FileServer library; the
+# server exposes no version/about endpoint, so RELEASE.txt stays the one
+# reliable place to read this from.
 if [ -f "${FS_DIR}/RELEASE.txt" ]; then
     sed 's/^/  /' "${FS_DIR}/RELEASE.txt"
 else

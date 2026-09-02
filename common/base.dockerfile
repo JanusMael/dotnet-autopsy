@@ -10,8 +10,8 @@
 #
 # Build context is the REPO ROOT (so COPY can reach common/ ; .dockerignore
 # is the existing root one). Contains: apt diagnostics packages, the .NET
-# global tools (incl. dotnet-trace) + pwsh + dotnet-monitor, the downloaded
-# file server, the Fresh editor, the SHARED .NET 10 file-based report apps
+# global tools (incl. dotnet-trace) + pwsh + dotnet-monitor, the NuGet-backed
+# file server host, the Fresh editor, the SHARED .NET 10 file-based report apps
 # (analysis_md, json-get) published to /opt/report-bin, the shared
 # /usr/local/bin/json-get shim + PATH hardening, the reusable-sources bake
 # (/analysis/sources), and the always-on toolchain smoke. Per-image triage
@@ -21,7 +21,8 @@
 # Key build args:
 #   DUMP_ARCH          — image CPU arch: amd64 (default) or arm64
 #   DOTNET_SDK_IMAGE   — override base (e.g. mcr.microsoft.com/dotnet/sdk:10.0-jammy)
-#   FILESERVER_VERSION — pin file server release tag (default: latest)
+#   FILESERVER_VERSION — Bennewitz.Ninja.FileServer NuGet package version
+#                        (default: latest = newest stable; pin for reproducibility)
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── Build-time args (before FROM so --platform can use them) ─────────────────
@@ -107,7 +108,7 @@ RUN apt-get update \
         # Network / download
         curl \
         ca-certificates \
-        # Archive tools (file server extraction)
+        # Archive tools (Fresh editor extraction)
         tar \
         gzip \
         unzip \
@@ -144,38 +145,44 @@ ENV PATH=/opt/bin:$PATH
 # Register SOS plugin with lldb (~/.dotnet/sos/libsosplugin.so → ~/.lldbinit)
 RUN dotnet-sos install
 
-# ── File server — downloaded per-platform at build time ───────────────────────
-# Asset names: Bennewitz.Ninja.FileServer-linux-x64.tar.gz
-#              Bennewitz.Ninja.FileServer-linux-arm64.tar.gz
-RUN case "${DUMP_ARCH}" in \
-        amd64) RID="linux-x64" ;; \
-        arm64) RID="linux-arm64" ;; \
-        *)     echo "ERROR: unsupported DUMP_ARCH=${DUMP_ARCH}" && exit 1 ;; \
-    esac \
-    && if [ "${FILESERVER_VERSION}" = "latest" ]; then \
-        URL="https://github.com/${FILESERVER_REPO}/releases/latest/download/Bennewitz.Ninja.FileServer-${RID}.tar.gz"; \
-    else \
-        URL="https://github.com/${FILESERVER_REPO}/releases/download/${FILESERVER_VERSION}/Bennewitz.Ninja.FileServer-${RID}.tar.gz"; \
-    fi \
-    && echo "Downloading file server: ${URL}" \
-    && mkdir -p /tmp/fserver-extract "${FILE_SERVER_DIR}" \
-    && for attempt in 1 2 3; do \
-        curl -fSL "${URL}" -o /tmp/fileserver.tar.gz && break; \
-        [ "${attempt}" -lt 3 ] && echo "Retry ${attempt}/3..." && sleep $((attempt * 5)); \
-    done \
-    && tar -xzf /tmp/fileserver.tar.gz -C /tmp/fserver-extract \
-    && FS_BIN=$(find /tmp/fserver-extract -name "Bennewitz.Ninja.FileServer" -not -name "*.pdb" | head -1) \
-    && [ -n "${FS_BIN}" ] || (echo "ERROR: binary not found in archive" && exit 1) \
-    && cp "${FS_BIN}" "${FILE_SERVER_DIR}/Bennewitz.Ninja.FileServer" \
-    && chmod +x "${FILE_SERVER_DIR}/Bennewitz.Ninja.FileServer" \
-    && { echo "repo            : ${FILESERVER_REPO}"; \
-         echo "version         : ${FILESERVER_VERSION}"; \
-         echo "asset           : Bennewitz.Ninja.FileServer-${RID}.tar.gz"; \
-         echo "source_url      : ${URL}"; \
-         echo "downloaded_at   : $(date -u +%Y-%m-%dT%H:%M:%SZ)"; \
+# ── File server — ASP.NET Core host around the Bennewitz.Ninja.FileServer NuGet ─
+# The file server is consumed as a NuGet LIBRARY (Bennewitz.Ninja.FileServer:
+# AddFileServer() + MapFileServer()), hosted by the tiny ASP.NET Core app in
+# common/FileServerHost/. Published here, once, framework-dependent — it runs
+# on the image's own ASP.NET Core runtime on amd64 and arm64 alike, so the
+# former per-RID prebuilt-tarball download (and its RID switch) is gone.
+#
+# FILESERVER_VERSION: "latest" → NuGet floating version "*" (newest stable —
+# keeps the rot-check "no pins" philosophy); anything else is passed through
+# as an exact package version. RELEASE.txt records the version that actually
+# RESOLVED (read back from the published deps.json), so dsos-info stays
+# accurate in both modes.
+#
+# Same NativeAOT-off + framework-dependent publish discipline as the report
+# apps. The NuGet restore happens here at build time (network) — the base
+# already needs NuGet for every `dotnet tool install` above, so this adds no
+# new dependency class. It is the base's ONE NuGet package dependency; the
+# report apps stay BCL-only (see CONTRIBUTING "Core invariants").
+COPY common/FileServerHost/ /opt/FileServerHost/
+RUN export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1 \
+    && if [ "${FILESERVER_VERSION}" = "latest" ]; then PKGVER="*"; else PKGVER="${FILESERVER_VERSION}"; fi \
+    && dotnet publish /opt/FileServerHost/FileServerHost.csproj -c Release -o "${FILE_SERVER_DIR}" \
+           -p:FileServerPackageVersion="${PKGVER}" \
+           -p:PublishAot=false -p:PublishSingleFile=false --self-contained false \
+           > /tmp/pub-fileserver.log 2>&1 \
+       || { echo "ERROR: publish FileServerHost failed"; cat /tmp/pub-fileserver.log; exit 1; } \
+    && RESOLVED=$(sed -n 's/.*"Bennewitz\.Ninja\.FileServer\/\([^"]*\)".*/\1/p' "${FILE_SERVER_DIR}/FileServerHost.deps.json" | head -1) \
+    && [ -n "${RESOLVED}" ] || RESOLVED="${FILESERVER_VERSION}" \
+    && { echo "package         : Bennewitz.Ninja.FileServer"; \
+         echo "version         : ${RESOLVED}"; \
+         echo "requested       : ${FILESERVER_VERSION}"; \
+         echo "source          : https://api.nuget.org/v3/index.json"; \
+         echo "repo            : https://github.com/${FILESERVER_REPO}"; \
+         echo "host            : common/FileServerHost (ASP.NET Core, framework-dependent)"; \
+         echo "published_at    : $(date -u +%Y-%m-%dT%H:%M:%SZ)"; \
        } > "${FILE_SERVER_DIR}/RELEASE.txt" \
-    && rm -rf /tmp/fserver-extract /tmp/fileserver.tar.gz \
-    && echo "File server installed: ${FILE_SERVER_DIR}/Bennewitz.Ninja.FileServer"
+    && rm -f /tmp/pub-fileserver.log \
+    && echo "File server published: ${FILE_SERVER_DIR}/FileServerHost (Bennewitz.Ninja.FileServer ${RESOLVED})"
 
 # ── Fresh terminal editor — pinned static musl binary, sha256-verified ────────
 # A real editor for SDK devs working interactively in the container (nano is
