@@ -167,8 +167,13 @@ Pin by digest with:
   `--build-arg DOTNET_MONITOR_VERSION=<v>` to `./chainguard/build.sh`.
 - **Fresh editor** is a static `musl` binary — works on Wolfi
   unchanged.
-- **File server** is a self-contained linux-{x64,arm64} binary — works
-  on Wolfi unchanged.
+- **File server** is a framework-dependent ASP.NET Core host
+  (`common/FileServerHost`) around the `Bennewitz.Ninja.FileServer` NuGet
+  library, published at image build time. It needs the ASP.NET Core shared
+  runtime — which the Chainguard SDK image ships (`Microsoft.AspNetCore.App`)
+  — and a NuGet restore during the build, the same network access the
+  `dotnet tool install` steps already require. There is no per-RID binary
+  and nothing arch- or libc-specific, so it runs on Wolfi/musl unchanged.
 - **PATH hardening for login shells** (`/etc/profile.d/dotnet-autopsy.sh`
   + `/root/.bashrc`) is preserved verbatim from the canonical base.
   Chainguard `-dev` images include a `/etc/profile` that sources
