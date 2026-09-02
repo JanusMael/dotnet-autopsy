@@ -189,7 +189,7 @@ heuristics).
 | `DUMP_ARCH` | `amd64` | all | Artifact CPU architecture: `amd64` or `arm64`. **Must match the artifact, not your laptop.** For trace and gcdump it's informational (those formats are portable); for sos it's a hard gate (DAC cannot cross-analyze). |
 | `INNER_EXCEPTION_DEPTH` | `9` | sos | Max wrapped-inner-exception expansion passes (FailFast / `AggregateException` unwrap). Raise for deeply-nested chains; `0` disables. Each pass reloads the dump. |
 | `DOTNET_SDK_IMAGE` | `mcr.microsoft.com/dotnet/sdk:10.0` | all | Base image. Override to match the artifact's OS (e.g. `…sdk:10.0-jammy`) |
-| `FILESERVER_VERSION` | `latest` | all | File server release tag — pin for reproducibility (e.g. `v2026.2.515`) |
+| `FILESERVER_VERSION` | `latest` | all | Version of the `Bennewitz.Ninja.FileServer` NuGet package the in-container file server is built from. `latest` floats to newest stable; pin for reproducibility (e.g. `2026.9.2`) |
 | `DOTNET_MONITOR_VERSION` | `9.0.0` | all | dotnet-monitor tool version — **pinned** (its release cadence is independent of the SDK; unpinned installs are unreliable) |
 | `FRESH_VERSION` | `v0.3.6` | all | Fresh terminal-editor release tag — **pinned**, static musl binary fetched + sha256-verified at build |
 | `SMOKE_TEST` | `0` | all | Set to `1` to run an end-to-end toolchain smoke test at build |
@@ -198,7 +198,7 @@ Example with custom args:
 ```sh
 docker compose build \
     --build-arg DUMP_FILE=myapp.dump \
-    --build-arg FILESERVER_VERSION=v2026.2.515
+    --build-arg FILESERVER_VERSION=2026.9.2
 
 # or via build.sh / build.ps1:
 ./build.sh --build-arg DUMP_FILE=myapp.dump
@@ -264,7 +264,7 @@ earlier case exactly, re-pin every value via `--build-arg`:
 ```sh
 docker compose build \
     --build-arg DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:10.0@sha256:<digest> \
-    --build-arg FILESERVER_VERSION=v2026.2.515
+    --build-arg FILESERVER_VERSION=2026.9.2
 ```
 
 ---

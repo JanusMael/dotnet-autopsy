@@ -32,8 +32,9 @@ the interactive section requires basic comfort with a terminal.
   - macOS Apple Silicon: enable "Use Rosetta for x86/amd64 emulation" in
     Docker Desktop → Settings → General. Allocate ≥8 GB RAM to the VM.
 - **Network access at build time** — the build fetches the matching DAC from
-  the Microsoft symbol server and downloads the file server binary. The
-  resulting image runs fully offline.
+  the Microsoft symbol server and restores the `Bennewitz.Ninja.FileServer`
+  NuGet package for the in-container file server. The resulting image runs
+  fully offline.
 - The **core dump file** and (optionally) **PDB files** from the crashed application.
 
 ---
@@ -121,8 +122,10 @@ The build:
 1. Installs the newest .NET SDK, diagnostic tools, and PowerShell (`pwsh`,
    as a .NET global tool) — no version pins — plus `dotnet-monitor` at a
    pinned version (installed for ad-hoc use, not run as a service).
-2. Downloads the file server binary and the `fresh` terminal editor
-   (pinned, static musl, sha256-verified) matching your platform.
+2. Publishes the in-container file server (a small ASP.NET Core host around
+   the `Bennewitz.Ninja.FileServer` NuGet package — framework-dependent, so
+   one publish runs on amd64 and arm64 alike) and downloads the `fresh`
+   terminal editor (pinned, static musl, sha256-verified) for your platform.
 3. Runs a toolchain smoke test (fails fast if packages are broken, incl.
    `pwsh`, `dotnet-monitor`, `fresh`, and `btop`).
 4. Fetches the **exact DAC** for your dump's runtime from the Microsoft symbol
@@ -146,7 +149,7 @@ docker compose build --build-arg INNER_EXCEPTION_DEPTH=20
 # Pin exact versions for reproducibility (see provenance.txt after first build)
 docker compose build \
     --build-arg DOTNET_SDK_IMAGE="mcr.microsoft.com/dotnet/sdk:10.0@sha256:<digest>" \
-    --build-arg FILESERVER_VERSION=v2026.2.515
+    --build-arg FILESERVER_VERSION=2026.9.2
 
 # End-to-end smoke test (proves the whole toolchain works; adds ~60 s)
 docker compose build --build-arg SMOKE_TEST=1
@@ -474,12 +477,17 @@ docker inspect dotnet-autopsy-sos     # container name — check port binding
 Ensure the port binds to `127.0.0.1` (security default). If running remotely,
 use SSH port forwarding: `ssh -L 5550:localhost:5550 user@host`.
 
-### Build fails with "binary not found in archive"
+### Build fails at "publish FileServerHost failed"
 
-The file server archive structure changed. Pin a known good release:
+The in-container file server is a NuGet package (`Bennewitz.Ninja.FileServer`)
+restored at build time. A failure here is either a transient NuGet outage or a
+newer package version that no longer builds against this host. Pin a known
+good version:
 ```sh
-docker compose build --build-arg FILESERVER_VERSION=v2026.2.515
+docker compose build --build-arg FILESERVER_VERSION=2026.9.2
 ```
+The build log echoes the full `dotnet publish` output on failure, so the
+underlying restore/compile error is visible in the Docker build output.
 
 ---
 
@@ -512,7 +520,8 @@ dumps. Allocate ≥8 GB to the Docker Desktop VM.
 
 ## Offline use and air-gapped builds
 
-The image is online at **build time** only (symbol fetch, file server download).
+The image is online at **build time** only (symbol fetch, NuGet restore for the
+diagnostic tools and the file server package).
 Once built, the container runs fully offline.
 
 **Air-gapped build** (no internet at build time):
@@ -539,7 +548,7 @@ Each image records exact tool versions + base image digest + dump SHA-256 in
 ```sh
 docker compose build \
     --build-arg DOTNET_SDK_IMAGE="mcr.microsoft.com/dotnet/sdk:10.0@sha256:<digest-from-provenance>" \
-    --build-arg FILESERVER_VERSION=v2026.2.515   # from provenance
+    --build-arg FILESERVER_VERSION=2026.9.2   # from provenance / RELEASE.txt
 ```
 
 ---
@@ -679,4 +688,4 @@ top-level `README.md` § *Parity gate* for the full directory contract.
 7. [Collect dumps on crash — DOTNET_DbgEnableMiniDump](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/collect-dumps-crash)
 8. [SOS commands reference](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/sos-debugging-extension)
 9. [lldb debugger](https://lldb.llvm.org/)
-10. [File server releases (per-RID assets)](https://github.com/JanusMael/Bennewitz.Ninja.FileServer/releases)
+10. [Bennewitz.Ninja.FileServer on NuGet](https://www.nuget.org/packages/Bennewitz.Ninja.FileServer) — the library the in-container file server is built from ([source](https://github.com/JanusMael/Bennewitz.Ninja.FileServer))

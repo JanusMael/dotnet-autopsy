@@ -1,0 +1,39 @@
+<!--
+  FileServerHost.csproj — dotnet-autopsy's in-container file server.
+
+  A minimal ASP.NET Core host around the Bennewitz.Ninja.FileServer NuGet
+  LIBRARY (AddFileServer() / MapFileServer()). It replaces the former
+  prebuilt per-RID single-file binary that common/base.dockerfile used to
+  download from GitHub releases: being framework-dependent, ONE publish runs
+  on the image's own ASP.NET Core runtime on amd64 and arm64 alike, so the
+  RID switch and the tarball/extract/chmod dance are gone.
+
+  Alongside trace/TraceTriage this is a deliberate exception to the family's
+  BCL-only / file-based-app discipline. Unlike TraceTriage it is NOT a
+  report app: it produces no analysis output, so the parity GOLDEN gate and
+  the pristine-stdout contract are untouched (see CONTRIBUTING "Core
+  invariants").
+
+  FileServerPackageVersion is set by the dockerfile from FILESERVER_VERSION:
+  "latest" → "*" (newest stable — keeps the rot-check "no pins" philosophy),
+  otherwise the exact version. The default below is a known-good pin so a
+  plain `dotnet build` also works outside Docker.
+
+  AssemblyName=FileServerHost so the apphost lands at
+  ${FILE_SERVER_DIR}/FileServerHost, which common/entrypoint.sh execs.
+-->
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>FileServerHost</AssemblyName>
+    <RootNamespace>DotnetAutopsy.FileServerHost</RootNamespace>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <FileServerPackageVersion Condition="'$(FileServerPackageVersion)' == ''">2026.9.2</FileServerPackageVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Bennewitz.Ninja.FileServer" Version="$(FileServerPackageVersion)" />
+  </ItemGroup>
+</Project>
