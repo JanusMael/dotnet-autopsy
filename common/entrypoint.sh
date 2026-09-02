@@ -6,7 +6,7 @@ FILES_DIR="${FILES_DIR:-/analysis}"
 FILE_SERVER_DIR="${FILE_SERVER_DIR:-/fileserver}"
 STATUS_FILE="${FILES_DIR}/status.json"
 CASE_OUTPUT="${CASE_OUTPUT:-${FILES_DIR}/analysis.txt}"
-FILE_SERVER_EXE="${FILE_SERVER_DIR}/Bennewitz.Ninja.FileServer"
+FILE_SERVER_EXE="${FILE_SERVER_DIR}/FileServerHost"
 
 # ── Status banner ─────────────────────────────────────────────────────────────
 

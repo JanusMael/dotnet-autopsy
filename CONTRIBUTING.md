@@ -16,9 +16,14 @@ These are non-negotiable and must be preserved by any contribution:
    Run it before every commit that touches a report app or analyze script.
 
 2. **No python3.** The image is zero-Python. Report logic lives in BCL-only .NET 10
-   file-based apps (`*.cs`, no NuGet) — except `trace/TraceTriage/` which uses the
-   `Microsoft.Diagnostics.Tracing.TraceEvent` NuGet package and is the deliberate
-   exception.
+   file-based apps (`*.cs`, no NuGet). Two deliberate NuGet exceptions:
+   - `trace/TraceTriage/` — a **report app** that needs
+     `Microsoft.Diagnostics.Tracing.TraceEvent` to read `.nettrace`; it is
+     parity-gated like every other report app.
+   - `common/FileServerHost/` — **infrastructure, not a report app**: the tiny
+     ASP.NET Core host around the `Bennewitz.Ninja.FileServer` library that serves
+     `/analysis` over HTTP. It produces no analysis output and never touches the
+     parity GOLDEN contract.
 
 3. **localhost-only binding.** Every `docker run` and `docker compose up` must bind
    to `127.0.0.1:5550`, never `0.0.0.0`. The images bake process memory (dumps,
