@@ -105,7 +105,7 @@ remain freely co-editable with `chainguard/`.
 
 ## Cutting a release (maintainers)
 
-Releases are **fully tag-driven**: pushing an annotated `vX.Y.Z` tag to
+Releases are **fully tag-driven**: pushing an annotated `vYYYY.S.MDD` tag to
 the repo triggers `.github/workflows/publish.yml`, which builds the
 `dotnet-autopsy-base` image for amd64 + arm64, signs it with cosign
 keyless OIDC, attaches a CycloneDX SBOM, attests SLSA build provenance,
@@ -119,16 +119,28 @@ Only the base ships.
 
 ### Versioning
 
-Semantic versioning. The base is the unit of versioning:
+Calendar versioning, matching the existing tags (`v2026.2.522`,
+`v2026.2.528`, `v2026.2.902`):
 
-- **Major** (`v2.0.0`) — breaking change to the consumed shape of the
-  base: shell PATH layout, `/opt/report-bin/*` binary paths, MOTD
-  format, `/analysis/sources/` README contract — anything a downstream
-  `FROM ghcr.io/.../dotnet-autopsy-base` consumer could rely on.
-- **Minor** (`v1.1.0`) — new feature in any of the three images
-  (e.g. a new triage section, a new sibling) without breaking the base
-  consumption shape.
-- **Patch** (`v1.0.1`) — bug fix, doc update, dependency bump, hotfix.
+    v<YYYY>.<series>.<M><DD>
+
+- `<YYYY>` — year of the tag.
+- `<series>` — hand-bumped, and only for a **breaking change to the
+  consumed shape of the base**: shell PATH layout, `/opt/report-bin/*`
+  binary paths, MOTD format, the `/analysis/sources/` README contract,
+  `RELEASE.txt` field names — anything a downstream
+  `FROM ghcr.io/.../dotnet-autopsy-base` consumer could rely on. New
+  features, fixes, doc updates and dependency bumps do **not** bump it.
+- `<M><DD>` — month and zero-padded day of the tag date, concatenated
+  with no separator: 22 May → `522`, 28 May → `528`, 2 Sep → `902`.
+  A second release on the same day appends a fourth component
+  (`v2026.2.902.1`); the `publish.yml` trigger `v*.*.*` still matches it.
+
+The base is the unit of versioning: every tag publishes exactly one
+`dotnet-autopsy-base`. Per-case images are never published.
+
+In the checklist below, `vYYYY.S.MDD` stands for the concrete tag
+(e.g. `v2026.2.902`).
 
 ### Release checklist
 
@@ -143,36 +155,36 @@ bash common/parity/run-parity.sh gcdump
 ./smoke.sh all
 
 # 3.  Promote the CHANGELOG: move [Unreleased] entries under a new
-#     [vX.Y.Z] — YYYY-MM-DD heading; leave [Unreleased] empty for the
+#     [vYYYY.S.MDD] — YYYY-MM-DD heading; leave [Unreleased] empty for the
 #     next cycle. Bump the link references at the bottom.
 
 # 4.  Commit the CHANGELOG bump
 git add CHANGELOG.md
-git commit -m "release: vX.Y.Z"
+git commit -m "release: vYYYY.S.MDD"
 
 # 5.  Tag (annotated; use the CHANGELOG entry as the tag message body)
-git tag -a vX.Y.Z -m "vX.Y.Z
+git tag -a vYYYY.S.MDD -m "vYYYY.S.MDD
 
 <paste the CHANGELOG section body here>"
 
 # 6.  Push the commit AND the tag
 git push origin main
-git push origin vX.Y.Z
+git push origin vYYYY.S.MDD
 
 # 7.  The publish.yml workflow auto-fires on the tag push. Watch:
 gh run watch              # or open the Actions tab
 #     ~10–15 min: per-arch builds → manifest → cosign + SBOM + SLSA
 
 # 8.  Verify the published artifact
-docker pull ghcr.io/janusmael/dotnet-autopsy-base:vX.Y.Z
-cosign verify ghcr.io/janusmael/dotnet-autopsy-base:vX.Y.Z \
+docker pull ghcr.io/janusmael/dotnet-autopsy-base:vYYYY.S.MDD
+cosign verify ghcr.io/janusmael/dotnet-autopsy-base:vYYYY.S.MDD \
   --certificate-identity-regexp 'https://github.com/.+/dotnet-.+/\.github/workflows/publish\.yml@refs/tags/v.+' \
   --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'
 
 # 9.  (Optional) Create a GitHub Release at the tag with the CHANGELOG
 #     entry as the body — surfaces release notes on the Releases page.
-gh release create vX.Y.Z --title "vX.Y.Z" \
-  --notes "$(awk '/^## \[vX.Y.Z\]/,/^## \[/' CHANGELOG.md | sed '$d')"
+gh release create vYYYY.S.MDD --title "vYYYY.S.MDD" \
+  --notes "$(awk '/^## \[vYYYY.S.MDD\]/,/^## \[/' CHANGELOG.md | sed '$d')"
 ```
 
 ### Dry-run (no push to GHCR)
@@ -193,11 +205,12 @@ There's no automated rollback. To recover from a bad release:
 1. **Move `:latest` back to the previous good tag manually:**
    ```sh
    docker buildx imagetools create -t ghcr.io/janusmael/dotnet-autopsy-base:latest \
-     ghcr.io/janusmael/dotnet-autopsy-base:vX.Y.Z-prev
+     ghcr.io/janusmael/dotnet-autopsy-base:vYYYY.S.MDD-prev
    ```
 2. **Do not delete the bad tag** — published cosign signatures and SBOM
-   attestations reference its digest. Cut a new patch release
-   (`vX.Y.Z+1`) with the fix instead.
+   attestations reference its digest. Cut a new tag with the fix instead:
+   the next date's `<M><DD>`, or a fourth component (`.1`) if it is the
+   same day.
 3. If the bad tag exposes a security vulnerability, follow `SECURITY.md`
    for the disclosure path before publishing the fix.
 
@@ -206,8 +219,8 @@ There's no automated rollback. To recover from a bad release:
 | Job | What |
 |---|---|
 | `derive` | Resolves the tag + `dry_run` + whether to move `:latest`. |
-| `build-per-arch` (matrix amd64 / arm64) | Builds `common/base.dockerfile` per-arch; pushes `:vX.Y.Z-{arch}`. GHA cache scoped per-arch. |
-| `manifest` (only if not dry-run) | Creates multi-arch manifest `:vX.Y.Z`; moves `:latest`; cosign-signs the digest; generates + attests CycloneDX SBOM; attaches SLSA provenance. |
+| `build-per-arch` (matrix amd64 / arm64) | Builds `common/base.dockerfile` per-arch; pushes `:vYYYY.S.MDD-{arch}`. GHA cache scoped per-arch. |
+| `manifest` (only if not dry-run) | Creates multi-arch manifest `:vYYYY.S.MDD`; moves `:latest`; cosign-signs the digest; generates + attests CycloneDX SBOM; attaches SLSA provenance. |
 | `dry-run-summary` (only if dry-run) | Reports that nothing was pushed. |
 
 The job summary on a successful run prints the pull + verify snippets

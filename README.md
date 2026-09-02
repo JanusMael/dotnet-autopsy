@@ -489,7 +489,7 @@ Consume the published base in your own per-case Dockerfile:
 
 ```dockerfile
 # Pin by tag for reproducibility…
-FROM ghcr.io/janusmael/dotnet-autopsy-base:v1.0.0
+FROM ghcr.io/janusmael/dotnet-autopsy-base:v2026.2.902
 
 # …or by digest for cryptographic certainty (recommended for prod):
 # FROM ghcr.io/janusmael/dotnet-autopsy-base@sha256:<DIGEST>
@@ -501,22 +501,22 @@ RUN /opt/analyze.sh   # or analyze-trace.sh / analyze-gcdump.sh
 Verify the signature and SBOM before consuming:
 
 ```sh
-docker pull ghcr.io/janusmael/dotnet-autopsy-base:v1.0.0
+docker pull ghcr.io/janusmael/dotnet-autopsy-base:v2026.2.902
 
 # Verify keyless-OIDC signature
-cosign verify ghcr.io/janusmael/dotnet-autopsy-base:v1.0.0 \
+cosign verify ghcr.io/janusmael/dotnet-autopsy-base:v2026.2.902 \
   --certificate-identity-regexp 'https://github.com/.+/dotnet-.+/\.github/workflows/publish\.yml@refs/tags/v.+' \
   --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'
 
 # Extract the SBOM attestation
-cosign download attestation ghcr.io/janusmael/dotnet-autopsy-base:v1.0.0 \
+cosign download attestation ghcr.io/janusmael/dotnet-autopsy-base:v2026.2.902 \
   --predicate-type=https://cyclonedx.org/bom \
   | jq -r .payload | base64 -d | jq .predicate > base.cyclonedx.json
 ```
 
 Publishing is driven by `.github/workflows/publish.yml`:
 
-- **Auto** on `git push origin v1.x.y` — fully signed + attested.
+- **Auto** on `git push origin v2026.2.902` (any `v*.*.*` tag) — fully signed + attested.
 - **Manual** via `gh workflow run publish.yml` — defaults to `dry_run=true`
   (builds without pushing). Set `dry_run=false` to publish a one-off tag.
 
