@@ -23,8 +23,9 @@ PRs #1–#7 are all merged.
 
 ## In flight: .NET 11 upgrade (plan `plans/00001-dotnet-11.md`)
 
-Branch `feat/dotnet-11`, cut from `docs/progress`; nothing pushed. PR A
-carries this file, the plan and the upgrade.
+Branch `feat/dotnet-11`, cut from `docs/progress`, pushed as PR A
+(JanusMael/dotnet-autopsy#8), which carries this file, the plan and the
+upgrade.
 
 | Step | State |
 |---|---|
@@ -33,7 +34,7 @@ carries this file, the plan and the upgrade.
 | 8 smokes + negative test | **passed**: `./smoke.sh all` exits 0. sos: in-image SMOKE_TEST, matched DAC, `status=success`. trace: TOP CPU rows. gcdump: TOP TYPES rows. Negative test rejects `partial` and `fetch-failed` and accepts `success` |
 | 9 cross-version (.NET 10 dump on the 11 base) | **passed**: runtime `10.0.12`, `status=success`, DAC from `microsoft_symbol_server` |
 | 10 file server starts clean | **passed**: no DataProtection/HTTP_PORTS warnings, `/` → 302 `/analysis`, `RELEASE.txt` = FileServer `2026.11.16` |
-| 11 push + PR A | waits for the go-ahead |
+| 11 push + PR A | **pushed**: #8 open, the four required checks green, merge waits on the developer. Rot-check run 43954998202 on `feat/dotnet-11` passed all seven jobs; amd64 sos `status=success`, `full-or-triage`, DAC from `microsoft_symbol_server`, dump runtime `11.0.0` |
 | 12 PR B (Chainguard regen) | after A merges |
 | 13 release | only on an explicit instruction |
 
@@ -150,10 +151,16 @@ Enforced; authoritative text in `CONTRIBUTING.md` § Core invariants.
 - **Git Bash rewrites `rev:path` arguments.** `git show origin/main:.github/x.yml`
   becomes a Windows path and silently fails, so a file looks absent from a
   branch. Run such commands with `MSYS_NO_PATHCONV=1`, or under WSL.
+- **GitHub disables scheduled workflows after 60 days without repository
+  activity.** Rot-check was disabled that way after its 2026-11-09 run (which
+  passed, the day before PowerShell 7.7.0 broke fresh builds), so the
+  2026-11-16 run never happened; re-enabled 2026-11-16. If the weekly signal
+  goes quiet, check `gh workflow list --all` for `disabled_inactivity`.
 
 ## Next
 
-1. Finish plan 00001 steps 8–10, then push PR A on the go-ahead.
+1. Merge PR A (#8, the developer's call), then plan 00001 step 12: PR B,
+   the Chainguard regen.
 2. At release: update the docs for the new tag (see above), and decide
    whether it gets a GitHub Release page.
 3. Optionally retune `main`'s protection as above.
