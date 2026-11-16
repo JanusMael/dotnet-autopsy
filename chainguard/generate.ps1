@@ -80,7 +80,8 @@ if (-not (Test-Path -LiteralPath $Src)) {
 # Same three transformations as the bash version (see generate.sh comments
 # for the full rationale).
 $lines = Get-Content -LiteralPath $Src
-$out = [System.Collections.Generic.List[string]]::new()
+# Not $out: names ignore case, so it would overwrite $Out, the output path.
+$outLines = [System.Collections.Generic.List[string]]::new()
 $inApt = $false
 
 $aptPackages = @(
@@ -93,21 +94,21 @@ $aptPackages = @(
 foreach ($line in $lines) {
     # (1) Both DOTNET_SDK_IMAGE ARG defaults → Chainguard
     if ($line -match '^ARG DOTNET_SDK_IMAGE=') {
-        $out.Add("ARG DOTNET_SDK_IMAGE=$SdkImage")
+        $outLines.Add("ARG DOTNET_SDK_IMAGE=$SdkImage")
         continue
     }
 
     # (2) After FROM, insert USER root + a marker block
     if ($line -eq 'FROM --platform=linux/${DUMP_ARCH} ${DOTNET_SDK_IMAGE} AS base') {
-        $out.Add($line)
-        $out.Add('')
-        $out.Add('# -- Chainguard adaptation ----------------------------------------------------')
-        $out.Add('# Chainguard images run as nonroot by default. apk + the global dotnet')
-        $out.Add('# tool installs that follow need root, so switch explicitly. If you want')
-        $out.Add('# the final image to drop to nonroot, add a USER nonroot near the end')
-        $out.Add('# (after all installs) and write the PATH/MOTD snippet from the canonical')
-        $out.Add('# base to /home/nonroot/.bashrc as well as /root/.bashrc.')
-        $out.Add('USER root')
+        $outLines.Add($line)
+        $outLines.Add('')
+        $outLines.Add('# -- Chainguard adaptation ----------------------------------------------------')
+        $outLines.Add('# Chainguard images run as nonroot by default. apk + the global dotnet')
+        $outLines.Add('# tool installs that follow need root, so switch explicitly. If you want')
+        $outLines.Add('# the final image to drop to nonroot, add a USER nonroot near the end')
+        $outLines.Add('# (after all installs) and write the PATH/MOTD snippet from the canonical')
+        $outLines.Add('# base to /home/nonroot/.bashrc as well as /root/.bashrc.')
+        $outLines.Add('USER root')
         continue
     }
 
@@ -122,51 +123,51 @@ foreach ($line in $lines) {
     # fail hard with diagnostic output if no candidate is found.
     if ($line -match '^RUN apt-get update \\$') {
         $inApt = $true
-        $out.Add('# Chainguard adaptation: apt-get replaced with apk add.')
-        $out.Add("# Chainguard's curated feed omits some diagnostic tools (lldb, btop).")
-        $out.Add('# Pull in the public Wolfi feed for those — Chainguard images are built')
-        $out.Add('# on top of Wolfi and share the same package keychain.')
-        $out.Add('#')
-        $out.Add('# lldb: empirically NOT in the free Chainguard or Wolfi feeds (as of')
-        $out.Add('# the 2026 builds we verified — `apk search lldb` returns only rust')
-        $out.Add('# packages that mention LLDB in their description). It is available')
-        $out.Add("# in Chainguard's paid Production tier; if you have that, append")
-        $out.Add('# apk.cgr.dev/extra-packages to /etc/apk/repositories before this RUN.')
-        $out.Add('#')
-        $out.Add('# The block below still attempts dynamic discovery — if Wolfi ever')
-        $out.Add('# adds an lldb package, it gets picked up automatically. If not, we')
-        $out.Add('# log a clear INFO and continue: delve-lldb is optional; delve')
-        $out.Add('# (dotnet-dump) is the documented primary interactive path.')
-        $out.Add('#')
-        $out.Add('# tar is typically pre-installed in the Chainguard SDK image and is not')
-        $out.Add('# in either curated feed by that exact name; verify-then-install.')
-        $out.Add('RUN wget -qO /etc/apk/keys/wolfi-signing.rsa.pub \')
-        $out.Add('        https://packages.wolfi.dev/os/wolfi-signing.rsa.pub \')
-        $out.Add("    && echo 'https://packages.wolfi.dev/os' >> /etc/apk/repositories \")
-        $out.Add('    && apk update \')
-        $out.Add('    && apk add --no-cache \')
+        $outLines.Add('# Chainguard adaptation: apt-get replaced with apk add.')
+        $outLines.Add("# Chainguard's curated feed omits some diagnostic tools (lldb, btop).")
+        $outLines.Add('# Pull in the public Wolfi feed for those — Chainguard images are built')
+        $outLines.Add('# on top of Wolfi and share the same package keychain.')
+        $outLines.Add('#')
+        $outLines.Add('# lldb: empirically NOT in the free Chainguard or Wolfi feeds (as of')
+        $outLines.Add('# the 2026 builds we verified — `apk search lldb` returns only rust')
+        $outLines.Add('# packages that mention LLDB in their description). It is available')
+        $outLines.Add("# in Chainguard's paid Production tier; if you have that, append")
+        $outLines.Add('# apk.cgr.dev/extra-packages to /etc/apk/repositories before this RUN.')
+        $outLines.Add('#')
+        $outLines.Add('# The block below still attempts dynamic discovery — if Wolfi ever')
+        $outLines.Add('# adds an lldb package, it gets picked up automatically. If not, we')
+        $outLines.Add('# log a clear INFO and continue: delve-lldb is optional; delve')
+        $outLines.Add('# (dotnet-dump) is the documented primary interactive path.')
+        $outLines.Add('#')
+        $outLines.Add('# tar is typically pre-installed in the Chainguard SDK image and is not')
+        $outLines.Add('# in either curated feed by that exact name; verify-then-install.')
+        $outLines.Add('RUN wget -qO /etc/apk/keys/wolfi-signing.rsa.pub \')
+        $outLines.Add('        https://packages.wolfi.dev/os/wolfi-signing.rsa.pub \')
+        $outLines.Add("    && echo 'https://packages.wolfi.dev/os' >> /etc/apk/repositories \")
+        $outLines.Add('    && apk update \')
+        $outLines.Add('    && apk add --no-cache \')
         # Drop lldb + tar from the main list — handled specially below.
         $corePackages = $aptPackages | Where-Object { $_ -notin @('lldb','tar') }
         for ($i = 0; $i -lt $corePackages.Count; $i++) {
-            $out.Add("        $($corePackages[$i]) \")
+            $outLines.Add("        $($corePackages[$i]) \")
         }
-        $out.Add('    && apk update \')
-        $out.Add("    && LLDB_PKG=`$(apk search lldb 2>/dev/null \")
-        $out.Add("            | sed -E 's/-[^-]+-r[0-9]+`$//' \")
-        $out.Add('            | sort -uV \')
-        $out.Add("            | grep -E '^lldb(-[0-9]+|-default)?`$' \")
-        $out.Add('            | tail -1) \')
-        $out.Add('    && if [ -n "${LLDB_PKG}" ]; then \')
-        $out.Add('           echo "Installing lldb package: ${LLDB_PKG}"; \')
-        $out.Add('           apk add --no-cache "${LLDB_PKG}"; \')
-        $out.Add('       else \')
-        $out.Add("           echo 'INFO: no lldb in the configured apk feeds (Chainguard public + Wolfi os).'; \")
-        $out.Add("           echo '      delve-lldb wrapper will be unavailable; delve (dotnet-dump) is unaffected.'; \")
-        $out.Add("           echo '      For lldb on Chainguard, append apk.cgr.dev/extra-packages (paid tier).'; \")
-        $out.Add('       fi \')
-        $out.Add('    && (   command -v tar >/dev/null 2>&1 \')
-        $out.Add('        || apk add --no-cache tar \')
-        $out.Add("        || { echo 'ERROR: tar not available' >&2; exit 1; })")
+        $outLines.Add('    && apk update \')
+        $outLines.Add("    && LLDB_PKG=`$(apk search lldb 2>/dev/null \")
+        $outLines.Add("            | sed -E 's/-[^-]+-r[0-9]+`$//' \")
+        $outLines.Add('            | sort -uV \')
+        $outLines.Add("            | grep -E '^lldb(-[0-9]+|-default)?`$' \")
+        $outLines.Add('            | tail -1) \')
+        $outLines.Add('    && if [ -n "${LLDB_PKG}" ]; then \')
+        $outLines.Add('           echo "Installing lldb package: ${LLDB_PKG}"; \')
+        $outLines.Add('           apk add --no-cache "${LLDB_PKG}"; \')
+        $outLines.Add('       else \')
+        $outLines.Add("           echo 'INFO: no lldb in the configured apk feeds (Chainguard public + Wolfi os).'; \")
+        $outLines.Add("           echo '      delve-lldb wrapper will be unavailable; delve (dotnet-dump) is unaffected.'; \")
+        $outLines.Add("           echo '      For lldb on Chainguard, append apk.cgr.dev/extra-packages (paid tier).'; \")
+        $outLines.Add('       fi \')
+        $outLines.Add('    && (   command -v tar >/dev/null 2>&1 \')
+        $outLines.Add('        || apk add --no-cache tar \')
+        $outLines.Add("        || { echo 'ERROR: tar not available' >&2; exit 1; })")
         continue
     }
 
@@ -175,14 +176,14 @@ foreach ($line in $lines) {
     # invocations so the build doesn't fail when it's absent. delve-lldb is
     # optional; delve (dotnet-dump) is the primary path and unaffected.
     if ($line -eq '    && lldb --version \') {
-        $out.Add('    && (command -v lldb >/dev/null 2>&1 && lldb --version \')
-        $out.Add('         || echo "INFO: lldb absent (Chainguard free feed); delve-lldb wrapper unavailable") \')
+        $outLines.Add('    && (command -v lldb >/dev/null 2>&1 && lldb --version \')
+        $outLines.Add('         || echo "INFO: lldb absent (Chainguard free feed); delve-lldb wrapper unavailable") \')
         continue
     }
     if ($line -eq '        lldb --batch -o "plugin load ${SOS_PLUGIN}" -o "help sos" -o "quit" 2>&1 | head -10 \') {
-        $out.Add('        (command -v lldb >/dev/null 2>&1 \')
-        $out.Add('            && lldb --batch -o "plugin load ${SOS_PLUGIN}" -o "help sos" -o "quit" 2>&1 | head -10 \')
-        $out.Add('            || echo "INFO: lldb absent — SOS plugin load check skipped") \')
+        $outLines.Add('        (command -v lldb >/dev/null 2>&1 \')
+        $outLines.Add('            && lldb --batch -o "plugin load ${SOS_PLUGIN}" -o "help sos" -o "quit" 2>&1 | head -10 \')
+        $outLines.Add('            || echo "INFO: lldb absent — SOS plugin load check skipped") \')
         continue
     }
 
@@ -194,12 +195,12 @@ foreach ($line in $lines) {
         continue
     }
 
-    $out.Add($line)
+    $outLines.Add($line)
 }
 
 # Write base.dockerfile with LF endings (it's a Dockerfile — .gitattributes
 # enforces LF on *.dockerfile but be explicit).
-$joined = ($out -join "`n") + "`n"
+$joined = ($outLines -join "`n") + "`n"
 [System.IO.File]::WriteAllText($Out, $joined, [System.Text.UTF8Encoding]::new($false))
 
 # Note on scope: this generator only produces base.dockerfile from the
