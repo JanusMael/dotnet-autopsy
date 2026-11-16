@@ -193,7 +193,7 @@ RUN cat > /analysis/.motd << 'MOTD'
     Hand-off guide  : http://localhost:5550/analysis/docs/RUNBOOK.md
                       (rendered; raw docs/sources under /analysis/docker/)
     Reusable apps   : http://localhost:5550/analysis/sources/
-                      the standalone .NET 10 report apps + how to reuse them
+                      the standalone .NET 11 report apps + how to reuse them
     File server     : http://localhost:5550/          browse everything
     Re-show this    : cat /analysis/.motd
 
@@ -234,7 +234,7 @@ RUN cat > /analysis/.motd << 'MOTD'
     /analysis/         the trace, analysis.md / .txt, status.json
     /analysis/docs/    README.md, RUNBOOK.md  (rendered by the file server)
     /analysis/docker/  the Dockerfiles + build/run scripts that built this
-    /analysis/sources/ the standalone-reusable .NET 10 report apps
+    /analysis/sources/ the standalone-reusable .NET 11 report apps
     $CASE_TRACE        env var → the baked .nettrace
 
   New here?  Open the rendered report URL above and read the TOP CPU

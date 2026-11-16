@@ -1,4 +1,4 @@
-// gcdump_triage.cs - .NET 10 file-based app (BCL only).
+// gcdump_triage.cs - .NET 11 file-based app (BCL only).
 //
 // Triage parser for `dotnet-gcdump report <file>` text output. Sibling of
 // triage_summary (dump) and trace_triage (trace) — emits the same '─'×60

@@ -1,4 +1,4 @@
-// triage_summary.cs - .NET 10 file-based app (BCL only).
+// triage_summary.cs - .NET 11 file-based app (BCL only).
 //
 // Byte-for-byte port of triage_summary.py. Parses raw SOS/dotnet-dump output
 // and emits the human-friendly triage summary section. Invoked by analyze.sh:

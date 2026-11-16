@@ -52,7 +52,7 @@ RUN chmod +x /opt/analyze.sh \
 
 # ── Publish the SOS triage app (analysis_md + json-get are in the base) ───────
 # Same cached/pristine-stdout discipline as the base publish step; the
-# NativeAOT-off + framework-dependent flags are mandatory (.NET 10 file-based
+# NativeAOT-off + framework-dependent flags are mandatory (.NET 10+ file-based
 # `dotnet publish` defaults to NativeAOT — see RUNBOOK "Extending the report
 # tools"). Apphost path /opt/report-bin/triage_summary/triage_summary.
 RUN export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1 \
@@ -103,13 +103,21 @@ DOTNET_DbgEnableMiniDump=1 \
     dotnet run 2>/dev/null || true
 [ -f /tmp/smoke.dump ] || { echo "ERROR: smoke dump not created"; exit 1; }
 echo "Smoke dump created: $(stat -c%s /tmp/smoke.dump) bytes"
+# Capture, print, then assert on CONTENT: dotnet-dump can exit 0 even when
+# an SOS command fails (e.g. no usable DAC), so the exit code alone proves
+# nothing. `clrstack` prints an "OS Thread Id:" header per managed thread,
+# which only appears when SOS really walked the runtime's data.
 dotnet-dump analyze /tmp/smoke.dump \
     -c "runtimes" \
     -c "clrthreads" \
+    -c "clrstack" \
     -c "printexception" \
-    -c "exit"
+    -c "exit" > /tmp/smoke-sos.txt 2>&1
+cat /tmp/smoke-sos.txt
+grep -q "OS Thread Id:" /tmp/smoke-sos.txt \
+    || { echo "ERROR: SMOKE_TEST: no 'OS Thread Id:' row — SOS did not walk the runtime"; exit 1; }
 echo "=== SMOKE_TEST: End-to-end chain PASSED ==="
-rm -rf /tmp/smokeapp /tmp/smoke.dump
+rm -rf /tmp/smokeapp /tmp/smoke.dump /tmp/smoke-sos.txt
 SMOKE_EOF
 
 # ── Case inputs + docs/sources baking ─────────────────────────────────────────
@@ -155,7 +163,7 @@ RUN cat > /analysis/.motd << 'MOTD'
     Hand-off guide  : http://localhost:5550/analysis/docs/RUNBOOK.md
                       (rendered; raw docs/sources under /analysis/docker/)
     Reusable apps   : http://localhost:5550/analysis/sources/
-                      the standalone .NET 10 report apps + how to reuse them
+                      the standalone .NET 11 report apps + how to reuse them
     File server     : http://localhost:5550/          browse everything
     Image info      : run  dsos-info   — fileserver version, env, symbols
     Re-show this    : cat /analysis/.motd
@@ -212,7 +220,7 @@ RUN cat > /analysis/.motd << 'MOTD'
     /analysis/         the dump, analysis.md / .txt, status.json, symbols/
     /analysis/docs/    README.md, RUNBOOK.md  (rendered by the file server)
     /analysis/docker/  the Dockerfiles + build/run scripts that built this
-    /analysis/sources/ the standalone-reusable .NET 10 report apps
+    /analysis/sources/ the standalone-reusable .NET 11 report apps
     /symbols-user/     your PDBs / app binary (baked from ./symbols/)
     $CASE_DUMP         env var → the baked core dump
     $INNER_EXCEPTION_DEPTH  inner-exc unwind passes (default 9; 0=off)

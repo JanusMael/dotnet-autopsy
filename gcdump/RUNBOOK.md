@@ -114,7 +114,7 @@ screen / MOTD inside the container; the highlights:
 | `/analysis/analysis.txt` | Authoritative raw source (tooling asserts on it). |
 | `/analysis/heap.gcdump` | The raw `.gcdump` (re-analyze locally with your own tools). |
 | `/analysis/status.json` | Machine status: `success` / `partial` / `failed`. |
-| `/analysis/sources/` | The standalone-reusable .NET 10 report apps (`json-get.cs`, `analysis_md.cs`, `gcdump_triage.cs`) + their reuse README. |
+| `/analysis/sources/` | The standalone-reusable .NET 11 report apps (`json-get.cs`, `analysis_md.cs`, `gcdump_triage.cs`) + their reuse README. |
 | `/analysis/docs/RUNBOOK.md` | This document, rendered. |
 
 The triage block at the top of `analysis.md` has three sections:
@@ -193,9 +193,9 @@ analysis.
 
 ---
 
-## Extending the report tools (.NET 10 file-based apps)
+## Extending the report tools (.NET 11 file-based apps)
 
-`gcdump_triage.cs` is one of four BCL-only .NET 10 **file-based apps**
+`gcdump_triage.cs` is one of four BCL-only .NET 11 **file-based apps**
 shipped by this family (the others are `analysis_md.cs` and `json-get.cs`
 in the shared base, plus the per-image `triage_summary.cs` and the
 csproj-based `TraceTriage`). The same convention and the **NativeAOT-publish

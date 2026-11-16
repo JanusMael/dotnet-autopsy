@@ -76,7 +76,7 @@ fi
 # 2. by basename under user-supplied binaries, then the analysis dir
 #    (no depth limit — users may preserve a nested publish tree; these dirs
 #    are small. The recorded path can be arbitrarily deep, e.g.
-#    /app/bin/Release/net10.0/MyApp or .../bin/Debug/net10.0/a.)
+#    /app/bin/Release/net11.0/MyApp or .../bin/Debug/net11.0/a.)
 if [ -z "$EXE" ] && [ -n "$BASE" ]; then
     EXE="$(find /symbols-user /analysis -type f -name "$BASE" 2>/dev/null | head -1)"
 fi

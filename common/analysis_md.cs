@@ -1,4 +1,4 @@
-// analysis_md.cs - .NET 10 file-based app (BCL only).
+// analysis_md.cs - .NET 11 file-based app (BCL only).
 //
 // Byte-for-byte port of analysis_md.py: render the assembled analysis.txt as
 // a navigable Markdown view (analysis.md). Pure post-processor; analysis.txt

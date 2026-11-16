@@ -11,7 +11,7 @@
 # Build context is the REPO ROOT (so COPY can reach common/ ; .dockerignore
 # is the existing root one). Contains: apt diagnostics packages, the .NET
 # global tools (incl. dotnet-trace) + pwsh + dotnet-monitor, the NuGet-backed
-# file server host, the Fresh editor, the SHARED .NET 10 file-based report apps
+# file server host, the Fresh editor, the SHARED .NET 11 file-based report apps
 # (analysis_md, json-get) published to /opt/report-bin, the shared
 # /usr/local/bin/json-get shim + PATH hardening, the reusable-sources bake
 # (/analysis/sources), and the always-on toolchain smoke. Per-image triage
@@ -20,21 +20,28 @@
 #
 # Key build args:
 #   DUMP_ARCH          — image CPU arch: amd64 (default) or arm64
-#   DOTNET_SDK_IMAGE   — override base (e.g. mcr.microsoft.com/dotnet/sdk:10.0-jammy)
+#   DOTNET_SDK_IMAGE   — override base (e.g. mcr.microsoft.com/dotnet/sdk:11.0-resolute)
 #   FILESERVER_VERSION — Bennewitz.Ninja.FileServer NuGet package version
 #                        (default: latest = newest stable; pin for reproducibility)
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── Build-time args (before FROM so --platform can use them) ─────────────────
 ARG DUMP_ARCH=amd64
-ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:10.0
+ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:11.0
 ARG FILESERVER_REPO=JanusMael/Bennewitz.Ninja.FileServer
 ARG FILESERVER_VERSION=latest
-# dotnet-monitor is the ONE pinned tool (everything else floats "newest").
-# Its release cadence is independent of the SDK and an unpinned
-# `dotnet tool install dotnet-monitor` is unreliable, so we pin a version
-# verified to install AND run on the base image. Override via --build-arg.
-ARG DOTNET_MONITOR_VERSION=9.0.0
+# dotnet-monitor and PowerShell are the pinned tools (the diagnostic tools
+# float "newest"). dotnet-monitor's release cadence is independent of the SDK
+# and an unpinned `dotnet tool install dotnet-monitor` is unreliable, so we
+# pin a version verified to install AND run on the base image. Override via
+# --build-arg.
+ARG DOTNET_MONITOR_VERSION=10.0.5
+# PowerShell global tool — pinned because 7.7.0 (published 2026-11-10) is
+# uninstallable: it depends on powershell.linux-x64 7.7.0, which nuget.org
+# does not carry. 7.6.10 targets .NET 10 and launches on newer runtimes via
+# DOTNET_ROLL_FORWARD=Major. Return to floating (or bump) once a 7.7.x
+# installs. Override via --build-arg.
+ARG POWERSHELL_VERSION=7.6.10
 # Fresh terminal editor (github.com/sinelaw/fresh) — pinned, static musl
 # binary fetched at build time (no apt deps; sha256-verified). For SDK devs
 # editing/repro in interactive sessions; nano is kept as the minimal fallback.
@@ -44,10 +51,11 @@ FROM --platform=linux/${DUMP_ARCH} ${DOTNET_SDK_IMAGE} AS base
 
 # Re-declare ARGs after FROM (Docker scope rule)
 ARG DUMP_ARCH=amd64
-ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:10.0
+ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:11.0
 ARG FILESERVER_REPO=JanusMael/Bennewitz.Ninja.FileServer
 ARG FILESERVER_VERSION=latest
-ARG DOTNET_MONITOR_VERSION=9.0.0
+ARG DOTNET_MONITOR_VERSION=10.0.5
+ARG POWERSHELL_VERSION=7.6.10
 ARG FRESH_VERSION=v0.3.6
 
 # Expose base image tag to scripts via env (for provenance)
@@ -64,12 +72,16 @@ ENV DOTNET_PerfMapEnabled=1
 ENV DOTNET_EnableEventLog=1
 
 # Roll forward across MAJOR runtime versions. This image floats every tool to
-# newest, but dotnet-monitor is PINNED (its cadence is independent of the SDK).
-# The pin targets a specific major's runtime; once the base SDK image advances
-# and stops shipping that older major side-by-side, a framework-dependent tool
-# built for it fails to launch with the .NET host's "framework not found" error
-# (process exit code 150). Major roll-forward lets such a tool run on the newer
-# runtime that IS present — exactly the rot-resilience this image is built for.
+# newest, but a tool can still target an older major than the base runtime:
+# dotnet-monitor and PowerShell are PINNED (PowerShell 7.6.x targets .NET 10
+# and needs this to run on 11), and the floating diagnostic tools can lag a
+# new SDK major (at .NET 11 GA the newest were 10.x). Once the base SDK image stops shipping that older major
+# side-by-side, a framework-dependent tool built for it fails to launch with
+# the .NET host's "framework not found" error (process exit code 150). Major
+# roll-forward lets such a tool run on the newer runtime that IS present —
+# exactly the rot-resilience this image is built for. The current monitor pin
+# runs natively; this guards the next SDK major the same way it guarded this
+# one.
 # Report apps (analysis_md, json-get, the per-image triage apps) target the
 # current major, so they exact-match first and roll-forward never engages —
 # the parity GOLDEN output is unaffected (and parity runs outside the image
@@ -114,22 +126,23 @@ RUN apt-get update \
         unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# ── .NET global diagnostic tools + PowerShell (newest, no version pin) ────────
+# ── .NET global diagnostic tools (newest, no version pin) + PowerShell ────────
 # The DAC version is irrelevant here — it's downloaded per-dump by build-ID.
 # PowerShell is installed as a .NET global tool (`pwsh`) rather than via the
-# packages.microsoft.com apt feed: it floats to latest with the rest, needs no
-# apt repo/GPG key, and stays base-image-independent (survives the Chainguard
-# swap). Useful for scripting triage in this .NET-oriented container.
+# packages.microsoft.com apt feed: it needs no apt repo/GPG key and stays
+# base-image-independent (survives the Chainguard swap). It is pinned via
+# ${POWERSHELL_VERSION} (see the ARG for why). Useful for scripting triage in
+# this .NET-oriented container.
 #
 # dotnet-monitor is installed (NOT run as a service — this is a post-mortem
 # container with no live target app) for ad-hoc interactive use. It is the
 # one PINNED tool: its release cadence is independent of the SDK and an
-# unpinned install is unreliable. Override via --build-arg. Because it is
-# pinned to a specific major, it relies on the DOTNET_ROLL_FORWARD=Major env
-# set above to keep launching once the base SDK image advances past that
-# major (see that block). Bumping ${DOTNET_MONITOR_VERSION} to a build that
-# natively targets the current runtime is the cleaner long-term fix when a
-# reliable version is confirmed.
+# unpinned install is unreliable. Override via --build-arg. The pinned version
+# was verified to launch on the base runtime without roll-forward; because it
+# is pinned to a specific major, the DOTNET_ROLL_FORWARD=Major env set above
+# keeps it launching once the base SDK image advances past that major (see
+# that block). Bump ${DOTNET_MONITOR_VERSION} when a release natively targets
+# the new runtime.
 RUN dotnet tool install --tool-path /opt/bin dotnet-counters \
     && dotnet tool install --tool-path /opt/bin dotnet-dump \
     && dotnet tool install --tool-path /opt/bin dotnet-gcdump \
@@ -137,7 +150,7 @@ RUN dotnet tool install --tool-path /opt/bin dotnet-counters \
     && dotnet tool install --tool-path /opt/bin dotnet-stack \
     && dotnet tool install --tool-path /opt/bin dotnet-trace \
     && dotnet tool install --tool-path /opt/bin dotnet-symbol \
-    && dotnet tool install --tool-path /opt/bin PowerShell \
+    && dotnet tool install --tool-path /opt/bin PowerShell --version "${POWERSHELL_VERSION}" \
     && dotnet tool install --tool-path /opt/bin dotnet-monitor --version "${DOTNET_MONITOR_VERSION}"
 
 ENV PATH=/opt/bin:$PATH
@@ -228,10 +241,10 @@ COPY common/lib/analyze-common.sh /opt/lib/analyze-common.sh
 RUN chmod +x /opt/entrypoint.sh
 
 # ── Publish the SHARED .NET report tools (cached layer; pristine stdout) ───────
-# .NET 10 file-based apps compiled ONCE here so the per-case analyze script
+# .NET 11 file-based apps compiled ONCE here so the per-case analyze script
 # invokes FIXED binaries: no per-case compile, no MSBuild text leaking into
 # the authoritative analysis.txt. BCL-only → offline-capable (no NuGet).
-# Spike-verified: `dotnet publish file.cs` defaults to NativeAOT in .NET 10
+# Spike-verified: `dotnet publish file.cs` defaults to NativeAOT (.NET 10 and 11)
 # (needs a C linker), hence explicit AOT/single-file=off + framework-dependent
 # (the runtime is present at run time since per-image is FROM this base).
 # Apphost path is /opt/report-bin/<app>/<app>.
@@ -269,7 +282,7 @@ RUN printf '#!/bin/bash\nexec /opt/report-bin/json-get/json-get "$@"\n' \
 
 # ── Reusable sources (advertise standalone-reuse) ─────────────────────────────
 # DISTINCT from /analysis/docker/ (which is "how THIS image was built").
-# /analysis/sources/ surfaces the standalone-reusable .NET 10 file-based apps
+# /analysis/sources/ surfaces the standalone-reusable .NET 11 file-based apps
 # so consumers see they work outside this project. The SHARED apps + a
 # generated README go here in the base (byte-identical in every sibling); the
 # per-image stage adds its own triage app.
@@ -278,7 +291,7 @@ COPY common/analysis_md.cs common/json-get.cs /analysis/sources/
 RUN cat > /analysis/sources/README.md << 'SRCREADME'
 # dotnet-autopsy — reusable report apps
 
-These are **standalone .NET 10 file-based apps** (no `.csproj`, no NuGet —
+These are **standalone .NET 11 file-based apps** (no `.csproj`, no NuGet —
 BCL only). They power the dotnet-autopsy report pipeline but are deliberately
 self-contained so you can reuse them **outside this project**.
 
@@ -288,7 +301,7 @@ Run directly with the SDK:
     dotnet run json-get.cs    -- <file.json> <key>
 
 Or publish a fixed binary (note: `dotnet publish file.cs` defaults to
-NativeAOT in .NET 10 and needs a C linker — build framework-dependent):
+NativeAOT in .NET 10 and later and needs a C linker — build framework-dependent):
 
     dotnet publish analysis_md.cs -c Release -o out \
         -p:PublishAot=false -p:PublishSingleFile=false --self-contained false
