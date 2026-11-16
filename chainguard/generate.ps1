@@ -77,7 +77,7 @@ if (-not (Test-Path -LiteralPath $Src)) {
 }
 
 # ── Transform base.dockerfile ─────────────────────────────────────────────────
-# Same three transformations as the bash version (see generate.sh comments
+# Same four transformations as the bash version (see generate.sh comments
 # for the full rationale).
 $lines = Get-Content -LiteralPath $Src
 # Not $out: names ignore case, so it would overwrite $Out, the output path.
@@ -109,6 +109,18 @@ foreach ($line in $lines) {
         $outLines.Add('# (after all installs) and write the PATH/MOTD snippet from the canonical')
         $outLines.Add('# base to /home/nonroot/.bashrc as well as /root/.bashrc.')
         $outLines.Add('USER root')
+        continue
+    }
+
+    # (4) DOTNET_EnableEventLog=1 → 0 (see generate.sh for the rationale:
+    # liblttng-ust on Chainguard makes dotnet-sos segfault at exit on .NET 11)
+    if ($line -eq 'ENV DOTNET_EnableEventLog=1') {
+        $outLines.Add('# Chainguard adaptation: EventLog off. This image ships liblttng-ust, so')
+        $outLines.Add('# DOTNET_EnableEventLog=1 loads the runtime LTTng tracepoint provider, and')
+        $outLines.Add('# on .NET 11 dotnet-sos then segfaults at process exit (exit 139), failing')
+        $outLines.Add('# RUN dotnet-sos install. The Microsoft SDK image has no liblttng-ust, so')
+        $outLines.Add('# there the setting is inert; 0 here matches its effective behavior.')
+        $outLines.Add('ENV DOTNET_EnableEventLog=0')
         continue
     }
 

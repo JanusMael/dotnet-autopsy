@@ -93,7 +93,7 @@ echo ""
 [ -f "${SRC}" ] || { echo "ERROR: source not found: ${SRC}" >&2; exit 1; }
 
 # ── Transform base.dockerfile ─────────────────────────────────────────────────
-# Three changes vs the canonical Microsoft-SDK base:
+# Four changes vs the canonical Microsoft-SDK base:
 #   1. Both `ARG DOTNET_SDK_IMAGE=…` defaults  → Chainguard image
 #   2. After the FROM line                     → insert `USER root`
 #      (Chainguard images run as nonroot by default; apk + global dotnet
@@ -101,6 +101,7 @@ echo ""
 #   3. The `RUN apt-get update … apt-get install … && rm -rf …` block
 #      → an equivalent `RUN apk add --no-cache …` (Wolfi has the same
 #      package names so this is a direct swap)
+#   4. `ENV DOTNET_EnableEventLog=1` → `=0` (see rule (4) below)
 awk -v sdk="${SDK_IMAGE}" '
 BEGIN { in_apt = 0 }
 
@@ -122,6 +123,21 @@ BEGIN { in_apt = 0 }
     print "# (after all installs) and write the PATH/MOTD snippet from the canonical"
     print "# base to /home/nonroot/.bashrc as well as /root/.bashrc."
     print "USER root"
+    next
+}
+
+# (4) DOTNET_EnableEventLog=1 → 0. The Chainguard image ships liblttng-ust,
+# so the setting loads the runtime LTTng tracepoint provider; on .NET 11
+# that makes dotnet-sos segfault at exit (139), failing RUN dotnet-sos
+# install. The Microsoft SDK image has no liblttng-ust, so there the
+# setting is inert and 0 matches its effective behavior.
+/^ENV DOTNET_EnableEventLog=1$/ {
+    print "# Chainguard adaptation: EventLog off. This image ships liblttng-ust, so"
+    print "# DOTNET_EnableEventLog=1 loads the runtime LTTng tracepoint provider, and"
+    print "# on .NET 11 dotnet-sos then segfaults at process exit (exit 139), failing"
+    print "# RUN dotnet-sos install. The Microsoft SDK image has no liblttng-ust, so"
+    print "# there the setting is inert; 0 here matches its effective behavior."
+    print "ENV DOTNET_EnableEventLog=0"
     next
 }
 

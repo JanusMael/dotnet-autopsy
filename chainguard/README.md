@@ -90,12 +90,13 @@ which publishes only the canonical base.
 
 | Aspect | Canonical (`common/base.dockerfile`) | Chainguard (`chainguard/base.dockerfile`) |
 |---|---|---|
-| Base image | `mcr.microsoft.com/dotnet/sdk:10.0` | `cgr.dev/chainguard/dotnet-sdk:latest-dev` |
+| Base image | `mcr.microsoft.com/dotnet/sdk:11.0` | `cgr.dev/chainguard/dotnet-sdk:latest-dev` |
 | Package manager | `apt-get install` (Debian) | `apk add --no-cache` (Wolfi) |
 | User after `FROM` | inherited (root on the Microsoft image) | explicit `USER root` (Chainguard runs nonroot by default) |
 | `lldb` availability | yes | **no** — see caveat below |
 | `delve` (dotnet-dump wrapper) | works | works |
 | `delve-lldb` (lldb wrapper) | works | **unavailable** — lldb absent |
+| `DOTNET_EnableEventLog` | `1` (inert: no `liblttng-ust` in the image) | `0` — see caveat below |
 | Per-image dockerfiles | — | unchanged (they `FROM dotnet-autopsy-base`) |
 
 Everything else (the .NET diagnostic tools, the file server, the Fresh
@@ -155,16 +156,27 @@ Pin by digest with:
   subscription, append `apk.cgr.dev/extra-packages` to
   `/etc/apk/repositories` in the generated dockerfile — that feed does
   contain `lldb`.
-- **`dotnet-monitor`** is the one pinned global tool (default
-  `9.0.0`). It targets the .NET 9 runtime, which Chainguard SDK images
-  do not ship (they're .NET 10 only). This is handled by the
-  **canonical** base's `ENV DOTNET_ROLL_FORWARD=Major` (the Microsoft
-  SDK image hit the same problem once it advanced past the pinned
-  major, so the roll-forward now lives in `common/base.dockerfile` and
-  the Chainguard variant inherits it verbatim). The .NET host then
-  satisfies the 9.x framework reference with the available 10.x
-  runtime. To pin a 10-native dotnet-monitor instead, pass
-  `--build-arg DOTNET_MONITOR_VERSION=<v>` to `./chainguard/build.sh`.
+- **Pinned tools and the runtime.** The Chainguard SDK image ships a
+  single runtime major (`latest-dev` is .NET 11 only: SDK `11.0.100`,
+  runtime `11.0.0`). Two global tools are pinned: `dotnet-monitor`
+  (`10.0.5`) and PowerShell (`7.6.10`, pinned because 7.7.0 cannot be
+  installed from nuget.org). PowerShell 7.6.10 targets .NET 10, which
+  this image does not ship. That is handled by the **canonical** base's
+  `ENV DOTNET_ROLL_FORWARD=Major`, which the Chainguard variant inherits
+  verbatim: the .NET host satisfies the older framework reference with
+  the 11.x runtime that is present. The same setting covers the floating
+  diagnostic tools when they lag a new SDK major. Override either pin
+  with `--build-arg DOTNET_MONITOR_VERSION=<v>` or
+  `--build-arg POWERSHELL_VERSION=<v>` to `./chainguard/build.sh`.
+- **`DOTNET_EnableEventLog` is `0` here, `1` in canonical.** The
+  Chainguard image ships `liblttng-ust`, so `1` makes the runtime load
+  its LTTng tracepoint provider. On .NET 11 that makes `dotnet-sos`
+  segfault at process exit (exit 139), which fails
+  `RUN dotnet-sos install`: 12 of 12 runs with `1`, 0 of 12 with `0`
+  (verified 2026-11-16; `DOTNET_LTTng=0` alone did not prevent it). The
+  Microsoft SDK image has no `liblttng-ust`, so the canonical `1` is
+  inert there and never crashed; `0` gives Chainguard the same effective
+  behavior. The generator rewrites the line (rule 4 in `generate.sh`).
 - **Fresh editor** is a static `musl` binary — works on Wolfi
   unchanged.
 - **File server** is a framework-dependent ASP.NET Core host
@@ -210,8 +222,8 @@ The Chainguard base image itself is held back from GHCR for now because:
 
 - It carries **known limitations** the canonical doesn't — no `lldb` on
   the free Chainguard / Wolfi feeds (see Caveats above), and the
-  `DOTNET_ROLL_FORWARD=Major` shim is needed so `dotnet-monitor 9.0.0`
-  can run on Chainguard's .NET 10–only runtime. Publishing implies a
+  `DOTNET_ROLL_FORWARD=Major` shim is needed so the pinned PowerShell
+  7.6.10 can run on Chainguard's .NET 11–only runtime. Publishing implies a
   level of polish the variant doesn't yet have.
 - There's **no parity gate** covering it — equivalence with the
   canonical is structural, not byte-exact.
@@ -227,8 +239,8 @@ instead of `common/base.dockerfile`. The cosign + SBOM + SLSA plumbing
 all carries over unchanged.
 
 **Future:** if Chainguard adoption demand grows or the limitations
-above are addressed (paid Chainguard tier with lldb, or a 10-native
-dotnet-monitor that removes the roll-forward shim), the right move is
+above are addressed (paid Chainguard tier with lldb, or pinned tools
+that all target the current runtime natively), the right move is
 to extend `publish.yml` with a parallel job that publishes
 `ghcr.io/janusmael/dotnet-autopsy-base-chainguard:vX.Y.Z` on the same
 tag triggers, with the same multi-arch + cosign + SBOM treatment. Tags
