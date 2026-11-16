@@ -128,7 +128,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # Pre-warm Microsoft Container Registry. MCR occasionally returns a
-      # transient 403/429 on the dotnet/sdk:10.0 manifest lookup from
+      # transient 403/429 on the dotnet/sdk:11.0 manifest lookup from
       # GitHub-hosted runners (shared IPs hit anonymous rate limits /
       # bot-detection heuristics). Without this, the buildx step fails fast
       # on the first miss; with it, we retry the same code path buildx uses
@@ -139,7 +139,7 @@ jobs:
       - name: Pre-warm MCR (transient 403/429 mitigation)
         run: |
           set -euo pipefail
-          REF="mcr.microsoft.com/dotnet/sdk:10.0"
+          REF="mcr.microsoft.com/dotnet/sdk:11.0"
           for attempt in 1 2 3 4 5; do
               if docker buildx imagetools inspect --raw "$REF" >/dev/null 2>&1; then
                   echo "MCR reachable on attempt ${attempt} (${REF})"

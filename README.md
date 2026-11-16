@@ -24,7 +24,7 @@ plus the artifact-specific analysis. The same `analysis.md` rendering,
 `json-get` status reader, parity GOLDEN gate, and MOTD/sources scaffolding
 are shared across the family.
 
-**Base image flavors:** Microsoft's .NET SDK image (`mcr.microsoft.com/dotnet/sdk:10.0`)
+**Base image flavors:** Microsoft's .NET SDK image (`mcr.microsoft.com/dotnet/sdk:11.0`)
 is the supported default — that's the path the parity GOLDEN gate covers.
 The base is intentionally a swap point; see
 [Adapting the base image](#adapting-the-base-image) for the general
@@ -188,9 +188,10 @@ heuristics).
 | `GCDUMP_FILE` | `heap.gcdump` | gcdump | `.gcdump` filename in the repo root |
 | `DUMP_ARCH` | `amd64` | all | Artifact CPU architecture: `amd64` or `arm64`. **Must match the artifact, not your laptop.** For trace and gcdump it's informational (those formats are portable); for sos it's a hard gate (DAC cannot cross-analyze). |
 | `INNER_EXCEPTION_DEPTH` | `9` | sos | Max wrapped-inner-exception expansion passes (FailFast / `AggregateException` unwrap). Raise for deeply-nested chains; `0` disables. Each pass reloads the dump. |
-| `DOTNET_SDK_IMAGE` | `mcr.microsoft.com/dotnet/sdk:10.0` | all | Base image. Override to match the artifact's OS (e.g. `…sdk:10.0-jammy`) |
+| `DOTNET_SDK_IMAGE` | `mcr.microsoft.com/dotnet/sdk:11.0` | all | Base image. Override to pin the distro or match the artifact's OS (e.g. `…sdk:11.0-resolute`) |
 | `FILESERVER_VERSION` | `latest` | all | Version of the `Bennewitz.Ninja.FileServer` NuGet package the in-container file server is built from. `latest` floats to newest stable; pin for reproducibility (e.g. `2026.9.2`) |
-| `DOTNET_MONITOR_VERSION` | `9.0.0` | all | dotnet-monitor tool version — **pinned** (its release cadence is independent of the SDK; unpinned installs are unreliable) |
+| `POWERSHELL_VERSION` | `7.6.10` | all | PowerShell global-tool version — **pinned** (7.7.0 is uninstallable from nuget.org: its `powershell.linux-x64` dependency is not published) |
+| `DOTNET_MONITOR_VERSION` | `10.0.5` | all | dotnet-monitor tool version — **pinned** (its release cadence is independent of the SDK; unpinned installs are unreliable) |
 | `FRESH_VERSION` | `v0.3.6` | all | Fresh terminal-editor release tag — **pinned**, static musl binary fetched + sha256-verified at build |
 | `SMOKE_TEST` | `0` | all | Set to `1` to run an end-to-end toolchain smoke test at build |
 
@@ -263,7 +264,7 @@ earlier case exactly, re-pin every value via `--build-arg`:
 
 ```sh
 docker compose build \
-    --build-arg DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:10.0@sha256:<digest> \
+    --build-arg DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:11.0@sha256:<digest> \
     --build-arg FILESERVER_VERSION=2026.9.2
 ```
 
@@ -368,7 +369,7 @@ full mechanics.
 
 ## Adapting the base image
 
-The canonical default is `mcr.microsoft.com/dotnet/sdk:10.0` — the path
+The canonical default is `mcr.microsoft.com/dotnet/sdk:11.0` — the path
 the parity GOLDEN gate covers. But the base image is intentionally a
 **swap point**: real teams ship images on whatever distro their security
 / procurement / compliance stack mandates (Chainguard / Wolfi, Red Hat

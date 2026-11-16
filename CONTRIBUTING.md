@@ -15,7 +15,7 @@ These are non-negotiable and must be preserved by any contribution:
    `ALL FIXTURES BYTE-IDENTICAL` for all three images (`sos`, `trace`, `gcdump`).
    Run it before every commit that touches a report app or analyze script.
 
-2. **No python3.** The image is zero-Python. Report logic lives in BCL-only .NET 10
+2. **No python3.** The image is zero-Python. Report logic lives in BCL-only .NET 11
    file-based apps (`*.cs`, no NuGet). Two deliberate NuGet exceptions:
    - `trace/TraceTriage/` — a **report app** that needs
      `Microsoft.Diagnostics.Tracing.TraceEvent` to read `.nettrace`; it is

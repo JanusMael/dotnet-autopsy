@@ -155,7 +155,7 @@ RUN cat > /analysis/.motd << 'MOTD'
     Machine status  : http://localhost:5550/analysis/status.json
     Hand-off guide  : http://localhost:5550/analysis/docs/RUNBOOK.md
     Reusable apps   : http://localhost:5550/analysis/sources/
-                      the standalone .NET 10 report apps + how to reuse them
+                      the standalone .NET 11 report apps + how to reuse them
     File server     : http://localhost:5550/          browse everything
     Re-show this    : cat /analysis/.motd
 
@@ -194,7 +194,7 @@ RUN cat > /analysis/.motd << 'MOTD'
     /analysis/         the gcdump, analysis.md / .txt, status.json
     /analysis/docs/    README.md, RUNBOOK.md  (rendered by the file server)
     /analysis/docker/  the Dockerfiles + build/run scripts that built this
-    /analysis/sources/ the standalone-reusable .NET 10 report apps
+    /analysis/sources/ the standalone-reusable .NET 11 report apps
     $CASE_GCDUMP       env var → the baked .gcdump
 
   New here?  Open the rendered report URL above and read the TOP TYPES

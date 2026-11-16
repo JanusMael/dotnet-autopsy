@@ -166,12 +166,26 @@ jobs:
           # (additive check — does NOT gate status; status stays on .txt/json)
           docker exec dotnet-autopsy-sos-rot-check bash -c \
             'test -s /analysis/analysis.md || (echo "ERROR: analysis.md empty"; exit 1)'
-          # status must be success or partial (not failed)
-          STATUS=$(docker exec dotnet-autopsy-sos-rot-check \
-            json-get /analysis/status.json status \
-            2>/dev/null || echo "unknown")
-          echo "Analysis status: ${STATUS}"
-          [ "${STATUS}" = "failed" ] && echo "ERROR: analysis status=failed" && exit 1
+          # The analysis must be a genuine success. status=partial is what a
+          # DAC mismatch produces (dump_fidelity=degraded), so it must NOT
+          # pass here. runtime_version is logged because the throwaway dump
+          # comes from the runner's preinstalled dotnet, not a pinned SDK.
+          jg() {
+            docker exec dotnet-autopsy-sos-rot-check \
+              json-get /analysis/status.json "$1" 2>/dev/null || echo "unknown"
+          }
+          STATUS=$(jg status); FIDELITY=$(jg dump_fidelity)
+          DAC=$(jg dac_source); RUNTIME=$(jg runtime_version)
+          echo "Analysis status: ${STATUS}  dump_fidelity: ${FIDELITY}  dac_source: ${DAC}"
+          echo "Dump runtime_version: ${RUNTIME}"
+          [ "${STATUS}" = "success" ] \
+            || { echo "ERROR: analysis status=${STATUS} (need success)"; exit 1; }
+          [ "${FIDELITY}" = "full-or-triage" ] \
+            || { echo "ERROR: dump_fidelity=${FIDELITY} (need full-or-triage)"; exit 1; }
+          case "${DAC}" in
+            microsoft_symbol_server|pre-seeded-cache) ;;
+            *) echo "ERROR: dac_source=${DAC} (DAC not obtained)"; exit 1 ;;
+          esac
           # HTTP check
           HTTP=$(curl -sL -o /dev/null -w "%{http_code}" http://127.0.0.1:5550/)
           echo "HTTP status: ${HTTP}"
@@ -479,15 +493,15 @@ jobs:
     # GOLDEN mode — it builds the shared (common/) + per-image .cs report
     # tools and `cmp`s their output against <image>/parity/golden/*.
     # Catches any .cs regression. No Docker, no Python; setup-dotnet
-    # supplies the .NET 10 SDK the harness publishes with.
+    # supplies the .NET 11 SDK the harness publishes with.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up .NET 10 SDK
+      - name: Set up .NET 11 SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '11.0.x'
 
       - name: Report parity gate — sos (byte-identical vs golden, or fail)
         run: bash common/parity/run-parity.sh sos

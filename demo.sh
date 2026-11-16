@@ -40,7 +40,7 @@ IMAGE="dotnet-autopsy-demo-${SLUG}"
 CONTAINER="dotnet-autopsy-demo-${SLUG}"
 GEN_NAME="dotnet-autopsy-demo-${SLUG}-gen-$$"
 DUMP_ARCH="${DUMP_ARCH:-amd64}"
-DOTNET_SDK_IMAGE="${DOTNET_SDK_IMAGE:-mcr.microsoft.com/dotnet/sdk:10.0}"
+DOTNET_SDK_IMAGE="${DOTNET_SDK_IMAGE:-mcr.microsoft.com/dotnet/sdk:11.0}"
 HOST_PORT="${DEMO_PORT:-5550}"
 
 case "${SLUG}" in

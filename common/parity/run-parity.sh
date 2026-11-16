@@ -25,7 +25,7 @@
 #        for images that never had a Python oracle, e.g. trace. Honest
 #        regression-only gate — diffs catch any future .cs drift.)
 #
-# Requires: .NET 10 SDK on PATH (always) + python3 (ORACLE/--update-golden).
+# Requires: .NET 11 SDK on PATH (always) + python3 (ORACLE/--update-golden).
 # No Docker. PASS == zero byte difference everywhere; exit nonzero on ANY diff.
 
 set -u
@@ -87,7 +87,7 @@ if [ "${KEEP}" = 0 ] || [ ! -d "${BIN}" ]; then
         "${TRIAGE_APP}|${TRIAGE_SRC}"; do
         app="${pair%%|*}"; src="${pair#*|}"
         # NOTE: `dotnet publish file.cs` implicitly enables NativeAOT in
-        # .NET 10 (needs clang/gcc, absent here). Framework-dependent build
+        # .NET 10 and later (needs clang/gcc, absent here). Framework-dependent build
         # with AOT/single-file off — same flags as the Dockerfile publish
         # step. See <image>/RUNBOOK.md "Extending the report tools".
         if ! dotnet publish "${src}" -c Release -o "${BIN}/${app}" \

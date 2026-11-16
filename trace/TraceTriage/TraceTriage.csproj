@@ -14,13 +14,13 @@
   parity harness expect — backward-compatible with the file-based-app era.
 
   Framework-dependent, no AOT, no single-file (see RUNBOOK "Extending the
-  report tools (.NET 10 file-based apps)" — the same NativeAOT-off
+  report tools (.NET 11 file-based apps)" — the same NativeAOT-off
   publish discipline applies here too).
 -->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <AssemblyName>trace_triage</AssemblyName>
     <RootNamespace>DotnetAutopsy.Trace</RootNamespace>
     <Nullable>disable</Nullable>

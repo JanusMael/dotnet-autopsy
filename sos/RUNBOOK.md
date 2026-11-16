@@ -148,7 +148,7 @@ docker compose build --build-arg INNER_EXCEPTION_DEPTH=20
 
 # Pin exact versions for reproducibility (see provenance.txt after first build)
 docker compose build \
-    --build-arg DOTNET_SDK_IMAGE="mcr.microsoft.com/dotnet/sdk:10.0@sha256:<digest>" \
+    --build-arg DOTNET_SDK_IMAGE="mcr.microsoft.com/dotnet/sdk:11.0@sha256:<digest>" \
     --build-arg FILESERVER_VERSION=2026.9.2
 
 # End-to-end smoke test (proves the whole toolchain works; adds ~60 s)
@@ -547,7 +547,7 @@ Each image records exact tool versions + base image digest + dump SHA-256 in
 
 ```sh
 docker compose build \
-    --build-arg DOTNET_SDK_IMAGE="mcr.microsoft.com/dotnet/sdk:10.0@sha256:<digest-from-provenance>" \
+    --build-arg DOTNET_SDK_IMAGE="mcr.microsoft.com/dotnet/sdk:11.0@sha256:<digest-from-provenance>" \
     --build-arg FILESERVER_VERSION=2026.9.2   # from provenance / RELEASE.txt
 ```
 
@@ -601,9 +601,9 @@ separate cleanup.
 
 ---
 
-## Extending the report tools (.NET 10 file-based apps)
+## Extending the report tools (.NET 11 file-based apps)
 
-The report logic is three **.NET 10 file-based apps** at the repo root —
+The report logic is three **.NET 11 file-based apps** at the repo root —
 `triage_summary.cs` (the triage section concatenated into the authoritative
 `analysis.txt`), `analysis_md.cs` (the rendered `analysis.md`), and
 `json-get.cs` (the `status.json` reader used by `entrypoint.sh` /
@@ -612,7 +612,7 @@ no `.csproj`) so they build offline, and they are byte-for-byte ports of the
 former Python scripts. `parity/run-parity.sh` is the differential gate:
 add a fixture under `parity/fixtures/` and keep every fixture byte-identical.
 
-### ⚠ Gotcha: `dotnet publish file.cs` defaults to NativeAOT in .NET 10
+### ⚠ Gotcha: `dotnet publish file.cs` defaults to NativeAOT (.NET 10 and later)
 
 For a **file-based app**, `dotnet publish app.cs` implicitly sets
 `PublishAot=true`. NativeAOT needs a C toolchain (`clang`/`gcc`), which the

@@ -119,7 +119,7 @@ screen / MOTD inside the container; the highlights:
 | `/analysis/analysis.txt` | Authoritative raw source (tooling asserts on it). |
 | `/analysis/trace.speedscope.json` | Drop this URL into <https://www.speedscope.app/> for a real flame graph. |
 | `/analysis/status.json` | Machine status: `success` / `partial` / `failed`. |
-| `/analysis/sources/` | The standalone-reusable .NET 10 report apps (`json-get.cs`, `analysis_md.cs`, `trace_triage.cs`) + their reuse README. |
+| `/analysis/sources/` | The standalone-reusable .NET 11 report apps (`json-get.cs`, `analysis_md.cs`, `trace_triage.cs`) + their reuse README. |
 | `/analysis/docs/RUNBOOK.md` | This document, rendered. |
 
 The triage block at the top of `analysis.md` synthesizes these sections:
@@ -214,7 +214,7 @@ project because it pulls in **`Microsoft.Diagnostics.Tracing.TraceEvent`**
 (the only NuGet dependency in the family), which is what lets it walk
 the EventPipe stream for runtime version, GC pairs, and exception starts.
 All other report apps in the family — `analysis_md.cs`, `json-get.cs`,
-`sos/triage_summary.cs`, `gcdump/gcdump_triage.cs` — are BCL-only .NET 10
+`sos/triage_summary.cs`, `gcdump/gcdump_triage.cs` — are BCL-only .NET 11
 **file-based apps** (`.cs` directly publishable, no `.csproj`).
 
 The same **NativeAOT-publish gotcha** documented in **`sos/RUNBOOK.md` §

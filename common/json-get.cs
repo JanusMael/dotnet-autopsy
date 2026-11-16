@@ -1,4 +1,4 @@
-// json-get.cs — .NET 10 file-based app (BCL only: System.Text.Json).
+// json-get.cs — .NET 11 file-based app (BCL only: System.Text.Json).
 //
 // Replaces every `python3 -c "import json,sys; d=json.load(open(F));
 // print(d.get(K,'unknown'))"` call site (entrypoint.sh, demo.sh, smoke.sh,
