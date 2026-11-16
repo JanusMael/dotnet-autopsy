@@ -34,8 +34,8 @@ upgrade.
 | 8 smokes + negative test | **passed**: `./smoke.sh all` exits 0. sos: in-image SMOKE_TEST, matched DAC, `status=success`. trace: TOP CPU rows. gcdump: TOP TYPES rows. Negative test rejects `partial` and `fetch-failed` and accepts `success` |
 | 9 cross-version (.NET 10 dump on the 11 base) | **passed**: runtime `10.0.12`, `status=success`, DAC from `microsoft_symbol_server` |
 | 10 file server starts clean | **passed**: no DataProtection/HTTP_PORTS warnings, `/` → 302 `/analysis`, `RELEASE.txt` = FileServer `2026.11.16` |
-| 11 push + PR A | **pushed**: #8 open, the four required checks green, merge waits on the developer. Rot-check run 43954998202 on `feat/dotnet-11` passed all seven jobs; amd64 sos `status=success`, `full-or-triage`, DAC from `microsoft_symbol_server`, dump runtime `11.0.0` |
-| 12 PR B (Chainguard regen) | after A merges |
+| 11 push + PR A | **merged** 2026-11-16 (#8, rebase, all checks green, no bypass). Rot-check run 43954998202 on `feat/dotnet-11` passed all seven jobs; amd64 sos `status=success`, `full-or-triage`, DAC from `microsoft_symbol_server`, dump runtime `11.0.0` |
+| 12 PR B (Chainguard regen) | **verified locally** on `chore/chainguard-regen-dotnet-11`: base builds on Chainguard `latest-dev` (SDK 11.0.100, runtime 11.0.0) with the toolchain smoke green; the sos smoke built through `./chainguard/build.sh sos` on that base passes with `status=success`, `full-or-triage`, DAC from `microsoft_symbol_server`. Push waits for the go-ahead. Drift below |
 | 13 release | only on an explicit instruction |
 
 Drift from the plan, decided by the developer on 2026-11-16:
@@ -53,6 +53,22 @@ Drift from the plan, decided by the developer on 2026-11-16:
   `sc_done`; (2) it passed `/analysis/status.json` as a bare argument, which
   Git Bash rewrites, so on Windows it always read `unknown`. Its strictness
   is unchanged: it still fails only on `failed`.
+- **Chainguard sets `DOTNET_EnableEventLog=0`** (generator rule 4). The
+  Chainguard `latest-dev` image is now .NET 11 only and ships
+  `liblttng-ust`; with `1`, `dotnet-sos` segfaults at exit (12/12), failing
+  `RUN dotnet-sos install`. `0`: 0/12. The canonical image lacks
+  `liblttng-ust`, so its `1` is inert (0/48 crashes) and `main` is unaffected.
+- **`chainguard/generate.ps1` fixed** (root-caused neighbor). It named its
+  line list `$out`, which PowerShell treats as the same variable as `$Out`,
+  the output path, so it threw at `WriteAllText` and never wrote a file. Now
+  `$outLines`; its output matches `generate.sh` apart from one decorative
+  header rule.
+- **`chainguard/build.sh` and `build.ps1` fixed** (root-caused neighbor).
+  With a sibling slug they delegated to the root `build.sh`/`build.ps1`,
+  which rebuild `dotnet-autopsy-base` from the canonical dockerfile, so
+  `./chainguard/build.sh sos` silently produced a sos image on the Microsoft
+  base. They now build the per-image dockerfile directly on the Chainguard
+  base.
 
 Family conventions (answer from the Templates session, 2026-11-16; source of
 truth in `C:\c\cl\Bennewitz.Ninja.Templates` at `603bdaa`, chiefly
@@ -106,21 +122,30 @@ is Q3). It is published and signed, so it stays; note the anomaly in
 `CHANGELOG.md` rather than moving or deleting it. A release cut on
 2026-11-16 would be `v2026.4.1116`.
 
+## Decisions (developer, 2026-11-16)
+
+| Decision | Choice |
+|---|---|
+| Merge method for PR A (#8) | Rebase merge, done by the developer. It keeps the approved plan as its own commit. |
+| `main` protection | Retune to the family convention: 0 approvals, the three `Parity gate` checks and the chainguard-isolation check required, admin bypass kept. Both workflows run on every PR to `main`, unfiltered. **Applied 2026-11-16** (classic branch protection; strict up-to-date, conversation resolution, no force-push or deletion unchanged). |
+| Conventions adopted | `.gitattributes` `* text=auto eol=lf` (with a renormalization, which settles the `*.csproj` CRLF warnings) and the AGENTS.md set (root and each top-level directory, a `CLAUDE.md` of `@AGENTS.md` beside each, `.github/copilot-instructions.md`). Each lands as its own small PR after PR B. Not adopted: turning merge commits off, the `release-tags` ruleset, `.github/repository.json`, per-job `permissions` and major-tag pinning, and the `conventions` job. |
+| Release | Cut after #8 and PR B are both merged, so the base image and the Chainguard variant match. It gets a GitHub Release page whose notes are the CHANGELOG section. The tag is pushed only on the developer's word. |
+
 ## Open
 
 | Item | Detail |
 |---|---|
-| GitHub Release page | None exists for any tag; tags publish straight to GHCR, so this is cosmetic. Recipe: `CONTRIBUTING.md` § Cutting a release, step 9. |
-| `.gitattributes` has no `*.csproj` rule | Git warns LF→CRLF on `common/FileServerHost/FileServerHost.csproj` and `trace/TraceTriage/TraceTriage.csproj`. Harmless to MSBuild in Linux Docker; a one-line `*.csproj text eol=lf` would normalize both. |
+| GitHub Release page recipe | `CONTRIBUTING.md` § Cutting a release, step 9. No earlier tag has a page. |
 
 ## Repository settings
 
-`main` requires 1 approving review and declares no required status checks. A
-solo maintainer cannot satisfy that on their own PR, so #1–#7 merged by admin
-bypass with CI green. To make "merge when green" enforceable by GitHub
-instead: add `Parity gate (sos)`, `Parity gate (trace)`,
-`Parity gate (gcdump)` and the chainguard-isolation check as required, and
-drop the review count to 0.
+`main` (classic branch protection) requires a PR with 0 approvals, and four
+status checks on an up-to-date branch: `Parity gate (sos)`,
+`Parity gate (trace)`, `Parity gate (gcdump)` and
+`chainguard/ touches do not bleed into canonical paths`. Conversations must
+be resolved; force-pushes and deletion are blocked; admins can bypass. A PR
+merges when green, without bypass. #1–#7 predate this and merged by admin
+bypass.
 
 ## Invariants
 
@@ -159,11 +184,10 @@ Enforced; authoritative text in `CONTRIBUTING.md` § Core invariants.
 
 ## Next
 
-1. Merge PR A (#8, the developer's call), then plan 00001 step 12: PR B,
-   the Chainguard regen.
-2. At release: update the docs for the new tag (see above), and decide
-   whether it gets a GitHub Release page.
-3. Optionally retune `main`'s protection as above.
+1. Finish plan 00001 step 12: PR B, the Chainguard regen (build and smoke,
+   then push on the go-ahead).
+2. The release, after PR B: tag, docs, CHANGELOG, GitHub Release page.
+3. The `.gitattributes` and AGENTS.md PRs.
 
 Branches: only `main` remains on the remote. Locally, `backup-pre-reset` is a
 deliberate safety branch — keep it.
