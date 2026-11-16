@@ -30,7 +30,7 @@ ROOT_DIR="$( cd "${SC_LIB_DIR}/../.." >/dev/null 2>&1 && pwd )"
 sc_init() {
     SLUG="$1"
     DUMP_ARCH="${DUMP_ARCH:-amd64}"
-    DOTNET_SDK_IMAGE="${DOTNET_SDK_IMAGE:-mcr.microsoft.com/dotnet/sdk:10.0}"
+    DOTNET_SDK_IMAGE="${DOTNET_SDK_IMAGE:-mcr.microsoft.com/dotnet/sdk:11.0}"
     BASE_TAG="dotnet-autopsy-base"
     TAG="dotnet-autopsy-${SLUG}-smoke-$$"
     CONTAINER_NAME="dotnet-autopsy-${SLUG}-smoke-$$"
@@ -143,11 +143,20 @@ sc_pwsh_check() {
 
 sc_status_check() {
     local status
+    # The in-container path goes inside a `bash -c` string: Git Bash on
+    # Windows rewrites a bare /analysis/… argument into a Windows path, which
+    # made this read "unknown" there.
     status=$(docker exec "${CONTAINER_NAME}" \
-        json-get /analysis/status.json status 2>/dev/null || echo "unknown")
+        bash -c 'json-get /analysis/status.json status' 2>/dev/null || echo "unknown")
     echo ""
     echo "Analysis status: ${status}"
-    [ "${status}" = "failed" ] && { echo "ERROR: analysis status=failed"; exit 1; }
+    if [ "${status}" = "failed" ]; then
+        echo "ERROR: analysis status=failed"; exit 1
+    fi
+    # Explicit success: this is each smoke's LAST command, and the former
+    # `[ … ] && { … }` form returned 1 whenever status was NOT failed, so
+    # every passing smoke exited 1.
+    return 0
 }
 
 sc_done() {
