@@ -3,34 +3,28 @@
 Current state and open threads. History lives in `CHANGELOG.md`; conventions
 and invariants in `CONTRIBUTING.md`. This file is replaced, not appended.
 
-## Status: releasing `v2026.4.1117` (.NET 11)
-
-The last published release is still `v2026.2.902`:
+## Status: released and verified
 
 | Fact | Value |
 |---|---|
-| Tag | `v2026.2.902` |
+| Tag | `v2026.4.1117` (.NET 11; CalVer — `CONTRIBUTING.md` § Versioning) |
 | Image | `ghcr.io/janusmael/dotnet-autopsy-base` |
-| Manifest digest | `sha256:666b3be93a3c2a8f557239ed5fc438997e99b92a038af0f282691f427afbcaaa` |
+| Manifest digest | `sha256:ca1e51280c639ab628e014dcf73cba561ce39b65cd48f5471a1e1747b3a234df` |
 | Platforms | `linux/amd64`, `linux/arm64` |
+| `:latest` | same digest |
+| Signature | `cosign verify` with the README's identity regexp passes |
 | Provenance | SLSA attested — `gh attestation verify oci://… --owner JanusMael` passes |
+| Release page | GitHub Release `v2026.4.1117`, notes = the CHANGELOG section |
 
-Per-case images (`sos`, `trace`, `gcdump`) are never published: they bake
-user artifacts containing process memory and PII.
+Tagged on `19348d4` (the #10 merge), published by `publish.yml` run
+44147069031 on 2026-11-17. Per-case images (`sos`, `trace`, `gcdump`) are
+never published: they bake user artifacts containing process memory and PII.
 
-## In flight: the release (plan `plans/00001-dotnet-11.md`, step 13)
+## Done: plan `plans/00001-dotnet-11.md`
 
-Steps 1–12 are done: the .NET 11 upgrade merged as #8 (2026-11-16) and the
-Chainguard regeneration as #9 (2026-11-17), both by rebase with all checks
-green and no bypass.
-
-| Release step | State |
-|---|---|
-| Release PR on `release/v2026.4.1117`: CHANGELOG section, `CONTRIBUTING.md` § Versioning rewritten to the quarter rule, the checklist fitted to the protected `main`, README example tags | open |
-| Tag `v2026.4.1117` on the merged `main` | after the PR merges, on the developer's word. If the merge lands on a later UTC day, the tag follows that date and the CHANGELOG heading is renamed |
-| `publish.yml` run, `cosign verify`, attestation check | after the tag |
-| GitHub Release page, notes = the CHANGELOG section | after the publish verifies |
-| Record the new digest here | a small follow-up PR |
+All 13 steps are done: the .NET 11 upgrade (#8, 2026-11-16), the Chainguard
+regeneration (#9) and the release (#10, the tag and the page, 2026-11-17).
+#8–#10 merged by rebase, all checks green, no bypass.
 
 Drift from the plan, decided by the developer on 2026-11-16 (details in the
 `CHANGELOG.md` entry):
@@ -95,7 +89,13 @@ Enforced; authoritative text in `CONTRIBUTING.md` § Core invariants.
   its major.
 - **Git Bash rewrites `rev:path` arguments.** `git show origin/main:.github/x.yml`
   becomes a Windows path and silently fails, so a file looks absent from a
-  branch. Run such commands with `MSYS_NO_PATHCONV=1`, or under WSL.
+  branch. Run such commands with `MSYS_NO_PATHCONV=1`, or under WSL. It
+  also mangles `cosign verify`'s `--certificate-identity-regexp` typed
+  inline, which then reports "no matching signatures" for a valid
+  signature; run it from a script file.
+- **Publish-run warnings, harmless today:** `ubuntu-latest` moves to
+  Ubuntu 26, and the v3/v4/v6 `actions/*` and `docker/*` actions target
+  Node.js 20, which GitHub runs on Node.js 24.
 - **GitHub disables scheduled workflows after 60 days without repository
   activity.** Rot-check was disabled that way after its 2026-11-09 run and
   re-enabled 2026-11-16. If the weekly signal goes quiet, check
@@ -106,11 +106,9 @@ Enforced; authoritative text in `CONTRIBUTING.md` § Core invariants.
 
 ## Next
 
-1. Merge the release PR, then tag, publish, verify and create the Release
-   page (`CONTRIBUTING.md` § Cutting a release, steps 5–9).
-2. Record the new digest here.
-3. The `.gitattributes` and AGENTS.md PRs.
+1. The `.gitattributes` PR (`* text=auto eol=lf`, with a renormalization).
+2. The AGENTS.md PR.
 
 Branches: locally, `backup-pre-reset` is a deliberate safety branch — keep
-it. `feat/dotnet-11` and `chore/chainguard-regen-dotnet-11` are merged
-(rebased) and gone from the remote.
+it. `feat/dotnet-11`, `chore/chainguard-regen-dotnet-11` and
+`release/v2026.4.1117` are merged (rebased) and gone from the remote.
