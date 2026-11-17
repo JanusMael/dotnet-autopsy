@@ -46,7 +46,7 @@ Authoritative text: `CONTRIBUTING.md` § Core invariants.
 | Report apps are BCL-only; `trace/TraceTriage` (TraceEvent) and `common/FileServerHost` (the file server) are the only NuGet consumers | A new dependency enters the parity contract or the base | review; `CONTRIBUTING.md` § Core invariants |
 | No Python anywhere in the images | The base grows a second runtime | review |
 | Ports bind to `127.0.0.1:5550`, never `0.0.0.0`, and no `--network host` | Process memory is served unauthenticated to the network | `docker-compose.yml`; `common/lib/smoke-common.sh` and `demo.sh` also bind `127.0.0.1` |
-| No dump, trace or gcdump is committed; smoke and demo inputs are generated in throwaway containers and deleted | Process memory, secrets and PII land in git history | `.gitignore`, for `*.dmp` and `*.dump` only; each `smoke.sh`'s `make_synthetic_input`; the PR template's checklist |
+| No dump, trace or gcdump is committed; smoke and demo inputs are generated in throwaway containers and deleted | Process memory, secrets and PII land in git history | `.gitignore` (`*.dmp`, `*.dump`, `*.nettrace`, `*.gcdump`); each `smoke.sh`'s `make_synthetic_input`; the PR template's checklist |
 | Per-case images are never published | A user's captured artifact reaches a registry | `publish.yml` builds `common/base.dockerfile` only |
 | A PR touching `chainguard/` touches no canonical pipeline path | Chainguard drift masks a parity change, or the reverse | `.github/workflows/chainguard-isolation.yml`, a required check |
 | Parity fixtures and goldens are never line-ending-normalized | `cmp` fails on a checkout that rewrote them | `.gitattributes`, `-text` on `**/parity/fixtures/**` and `**/parity/golden/**` |

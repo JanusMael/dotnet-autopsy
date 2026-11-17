@@ -12,7 +12,8 @@ LICENSE
 # deliberately NOT excluded — they are baked into the image under
 # /analysis/docs and /analysis/docker for in-container reference.
 
-# Stale baked fileserver tree (replaced by runtime download in Dockerfile).
+# Leftover file-server binaries from when they were committed at the root;
+# the base builds the server from common/FileServerHost/ instead.
 fileserver/
 
 # Parity harness — host-side differential test gate + fixtures + build
@@ -23,7 +24,8 @@ fileserver/
 parity/
 **/parity/
 
-# DO NOT exclude: the dump file (*.dump / *.dmp) or the symbols/ dir.
+# DO NOT exclude: the captures (*.dump / *.dmp / *.nettrace / *.gcdump) or
+# the symbols/ dir.
 # Those are the per-case inputs that get baked in.
 
 # ...except the repository docs inside symbols/, which sos/dotnet-sos.dockerfile

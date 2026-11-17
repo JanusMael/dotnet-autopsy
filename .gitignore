@@ -1,6 +1,11 @@
-# Dump files — never commit these; they contain process memory (secrets/PII).
+# Diagnostic captures — never commit these. Core dumps hold process memory,
+# traces hold stack samples, gcdumps hold heap object addresses and type
+# names: any of them can carry secrets or PII. The images bake them from the
+# build context, which .gitignore does not affect.
 *.dmp
 *.dump
+*.nettrace
+*.gcdump
 
 # Analysis outputs — generated at build time, case-specific. Root-anchored
 # (leading /) so these patterns do NOT also swallow the byte-exact parity
@@ -10,14 +15,13 @@
 /provenance.txt
 /status.json
 
-# Baked file server binary — fetched at build time from GitHub releases.
-# These files were previously committed but are no longer tracked.
+# Leftover file-server binaries from when they were committed at the root.
+# The image now builds the server from common/FileServerHost/ at build time.
 fileserver/
 
-# Parity harness build output — parity/run-parity.sh publishes the .NET
-# report tools here for the differential gate. Never committed; rebuilt on
-# demand. (parity/run-parity.sh and parity/fixtures/ ARE tracked — they are
-# the gate + its corpus.)
+# Parity harness build output — common/parity/run-parity.sh publishes the
+# .NET report tools here for the gate. Never committed; rebuilt on demand.
+# (The gate and its corpus, common/parity/ and <image>/parity/, are tracked.)
 parity/_bin/
 
 # Symbol cache and user PDBs — case-specific, potentially large/sensitive.
