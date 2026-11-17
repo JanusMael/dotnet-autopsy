@@ -4,13 +4,63 @@ All notable changes to dotnet-autopsy are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions are the git tags that trigger the `publish.yml` workflow, in the
-repo's calendar scheme `v<YYYY>.<series>.<M><DD>` (see `CONTRIBUTING.md`
+repo's calendar scheme `v<YYYY>.<quarter>.<M><DD>` (see `CONTRIBUTING.md`
 § *Versioning*). Every tag publishes exactly one `dotnet-autopsy-base`;
 per-case images are never published.
 
 ---
 
 ## [Unreleased]
+
+---
+
+## [v2026.4.1117] — 2026-11-17
+
+### Changed
+
+- **The toolchain moves to .NET 11.** The base image now defaults to
+  `mcr.microsoft.com/dotnet/sdk:11.0` (Ubuntu 26.04). Consumers building
+  `FROM` the base get the .NET 11 SDK and runtime; `DOTNET_ROLL_FORWARD=Major`
+  still lets tools built for an earlier major run on it. The `dotnet-*`
+  diagnostic tools stay unpinned (their newest release, 10.0.750501, runs on
+  11). `dotnet-monitor` moves from 9.0.0 to 10.0.5. `common/FileServerHost`
+  and `trace/TraceTriage` target `net11.0`, and the report apps run on 11
+  with byte-identical parity output for `sos`, `trace` and `gcdump`. CI's
+  parity gate and rot-check use the 11.0.x SDK; `publish.yml` pre-warms
+  `sdk:11.0`; `smoke.sh` and `demo.sh` default to `sdk:11.0`. A .NET 10 dump
+  still analyzes with `status=success` on the 11 base. (#8)
+- **Stricter sos checks.** rot-check's amd64 sos job requires
+  `status=success`, `full-or-triage` fidelity and an obtained DAC (it accepted
+  `partial`), and logs the dump's runtime version. The in-image `SMOKE_TEST`
+  requires a `clrstack` row rather than trusting `dotnet-dump`'s exit code.
+  (#8)
+- **Chainguard variant regenerated** for the NuGet-hosted file server (#7)
+  and for .NET 11 (#9). Chainguard's `latest-dev` image is now .NET 11 only
+  and ships `liblttng-ust`, so the variant sets `DOTNET_EnableEventLog=0`:
+  with `1`, `dotnet-sos` segfaults at exit and the build fails. The
+  canonical image has no `liblttng-ust`, so its `1` is inert and unchanged.
+  Details in `chainguard/README.md` § Caveats. (#9)
+- **Versioning: the second tag component is now the calendar quarter** of
+  the UTC tag date, replacing the hand-bumped series (`CONTRIBUTING.md`
+  § *Versioning*). Under that rule `v2026.2.902`, cut in September, would
+  have been `v2026.3.902`. It is published, signed and attested, so it stays
+  as it is; it sorts below this release.
+
+### Fixed
+
+- **Fresh base builds failed** once PowerShell 7.7.0 was published
+  (2026-11-10): the global tool's `powershell.linux-x64` 7.7.0 dependency is
+  not on nuget.org. PowerShell is pinned to 7.6.10 through a new
+  `POWERSHELL_VERSION` build arg until a 7.7.x installs. (#8)
+- **The smoke tests exited 1 on a pass**, and on Windows read every status
+  as `unknown`. The sos smoke also accepted `status=partial`, which is what a
+  DAC mismatch produces; it now requires a genuine success. (#8)
+- **`chainguard/build.sh sos` built on the Microsoft base.** The Chainguard
+  wrappers handed sibling builds to the root scripts, which rebuild
+  `dotnet-autopsy-base` from the canonical dockerfile. They now build the
+  per-image dockerfile on the Chainguard base. (#9)
+- **`chainguard/generate.ps1` never wrote its output**: its line list
+  shared a case-insensitive name with the output path. (#9)
 
 ---
 
@@ -126,7 +176,8 @@ Initial public release of the `dotnet-autopsy` family.
 - `demo.sh sos|trace|gcdump` — persistent interactive instance
 - `smoke.sh sos|trace|gcdump|all` — self-cleaning pass/fail CI test
 
-[Unreleased]: https://github.com/JanusMael/dotnet-autopsy/compare/v2026.2.902...HEAD
+[Unreleased]: https://github.com/JanusMael/dotnet-autopsy/compare/v2026.4.1117...HEAD
+[v2026.4.1117]: https://github.com/JanusMael/dotnet-autopsy/compare/v2026.2.902...v2026.4.1117
 [v2026.2.902]: https://github.com/JanusMael/dotnet-autopsy/compare/v2026.2.528...v2026.2.902
 [v2026.2.528]: https://github.com/JanusMael/dotnet-autopsy/compare/v2026.2.522...v2026.2.528
 [v2026.2.522]: https://github.com/JanusMael/dotnet-autopsy/tree/v2026.2.522
