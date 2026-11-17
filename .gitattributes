@@ -1,3 +1,7 @@
+# Every text file is stored and checked out with LF, whatever core.autocrlf
+# says. Git detects binaries itself; later lines override this one.
+*           text=auto eol=lf
+
 # Force LF line endings for all shell scripts and Dockerfiles
 # so Windows checkouts don't break the in-container #!/bin/bash shebang.
 *.sh        text eol=lf
