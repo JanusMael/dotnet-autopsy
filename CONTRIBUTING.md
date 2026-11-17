@@ -105,7 +105,7 @@ remain freely co-editable with `chainguard/`.
 
 ## Cutting a release (maintainers)
 
-Releases are **fully tag-driven**: pushing an annotated `vYYYY.S.MDD` tag to
+Releases are **fully tag-driven**: pushing an annotated `vYYYY.Q.MDD` tag to
 the repo triggers `.github/workflows/publish.yml`, which builds the
 `dotnet-autopsy-base` image for amd64 + arm64, signs it with cosign
 keyless OIDC, attaches a CycloneDX SBOM, attests SLSA build provenance,
@@ -119,28 +119,38 @@ Only the base ships.
 
 ### Versioning
 
-Calendar versioning, matching the existing tags (`v2026.2.522`,
-`v2026.2.528`, `v2026.2.902`):
+Calendar versioning, the same `YEAR.QUARTER.MMdd` shape as the
+`Bennewitz.Ninja.AutoVersioning` package versions:
 
-    v<YYYY>.<series>.<M><DD>
+    v<YYYY>.<Q>.<M><DD>
 
-- `<YYYY>` — year of the tag.
-- `<series>` — hand-bumped, and only for a **breaking change to the
-  consumed shape of the base**: shell PATH layout, `/opt/report-bin/*`
-  binary paths, MOTD format, the `/analysis/sources/` README contract,
-  `RELEASE.txt` field names — anything a downstream
-  `FROM ghcr.io/.../dotnet-autopsy-base` consumer could rely on. New
-  features, fixes, doc updates and dependency bumps do **not** bump it.
-- `<M><DD>` — month and zero-padded day of the tag date, concatenated
-  with no separator: 22 May → `522`, 28 May → `528`, 2 Sep → `902`.
-  A second release on the same day appends a fourth component
-  (`v2026.2.902.1`); the `publish.yml` trigger `v*.*.*` still matches it.
+All three parts come from the **UTC date of the tag**:
+
+- `<YYYY>` — the year.
+- `<Q>` — the calendar quarter, `(month + 2) / 3` in integer division:
+  January–March → `1`, April–June → `2`, July–September → `3`,
+  October–December → `4`.
+- `<M><DD>` — the month and zero-padded day as one integer, so the month
+  has no leading zero: 22 May → `522`, 2 Sep → `902`, 17 Nov → `1117`.
+
+A second release on the same day appends a fourth component
+(`v2026.4.1117.1`); the `publish.yml` trigger `v*.*.*` still matches it.
+
+Nothing in the tag signals a breaking change. A change to the consumed
+shape of the base — shell PATH layout, `/opt/report-bin/*` binary paths,
+MOTD format, the `/analysis/sources/` README contract, `RELEASE.txt` field
+names, the SDK major — is called out in its `CHANGELOG.md` entry instead.
+
+`v2026.2.522`, `v2026.2.528` and `v2026.2.902` were cut under an earlier
+scheme whose second part was a hand-bumped series. The first two also fit
+the quarter rule; `v2026.2.902` (September, Q3) does not. Published tags
+are never moved, so it stays, and it sorts below every later tag.
 
 The base is the unit of versioning: every tag publishes exactly one
 `dotnet-autopsy-base`. Per-case images are never published.
 
-In the checklist below, `vYYYY.S.MDD` stands for the concrete tag
-(e.g. `v2026.2.902`).
+In the checklist below, `vYYYY.Q.MDD` stands for the concrete tag
+(e.g. `v2026.4.1117`).
 
 ### Release checklist
 
@@ -154,37 +164,49 @@ bash common/parity/run-parity.sh gcdump
 # 2.  (Optional but encouraged) full smoke
 ./smoke.sh all
 
-# 3.  Promote the CHANGELOG: move [Unreleased] entries under a new
-#     [vYYYY.S.MDD] — YYYY-MM-DD heading; leave [Unreleased] empty for the
-#     next cycle. Bump the link references at the bottom.
+# 3.  On a release branch, promote the CHANGELOG: move [Unreleased] entries
+#     under a new [vYYYY.Q.MDD] — YYYY-MM-DD heading; leave [Unreleased]
+#     empty for the next cycle. Bump the link references at the bottom.
+git switch -c release/vYYYY.Q.MDD
 
-# 4.  Commit the CHANGELOG bump
+# 4.  Commit, push and open a PR. main is protected: the release commit
+#     lands through a PR like any other change, once its checks are green.
 git add CHANGELOG.md
-git commit -m "release: vYYYY.S.MDD"
+git commit -m "release: vYYYY.Q.MDD"
+git push -u origin release/vYYYY.Q.MDD
+gh pr create --fill
 
-# 5.  Tag (annotated; use the CHANGELOG entry as the tag message body)
-git tag -a vYYYY.S.MDD -m "vYYYY.S.MDD
+# 5.  After the PR merges, tag the merged main (annotated; the CHANGELOG
+#     section is the tag message body). If the merge slipped to another UTC
+#     day, the tag follows the date it is cut: rename the CHANGELOG heading
+#     in a follow-up PR. --cleanup=whitespace keeps the "### Changed"
+#     headings, which the default cleanup strips as comments.
+git switch main && git pull --ff-only
+awk 'f && /^(---|## \[)/ {exit} f; /^## \[vYYYY\.Q\.MDD\]/ {f=1}' \
+  CHANGELOG.md > release-notes.md
+git tag -a --cleanup=whitespace vYYYY.Q.MDD -F - <<EOF
+vYYYY.Q.MDD
+$(cat release-notes.md)
+EOF
 
-<paste the CHANGELOG section body here>"
-
-# 6.  Push the commit AND the tag
-git push origin main
-git push origin vYYYY.S.MDD
+# 6.  Push the tag
+git push origin vYYYY.Q.MDD
 
 # 7.  The publish.yml workflow auto-fires on the tag push. Watch:
 gh run watch              # or open the Actions tab
 #     ~10–15 min: per-arch builds → manifest → cosign + SBOM + SLSA
 
 # 8.  Verify the published artifact
-docker pull ghcr.io/janusmael/dotnet-autopsy-base:vYYYY.S.MDD
-cosign verify ghcr.io/janusmael/dotnet-autopsy-base:vYYYY.S.MDD \
+docker pull ghcr.io/janusmael/dotnet-autopsy-base:vYYYY.Q.MDD
+cosign verify ghcr.io/janusmael/dotnet-autopsy-base:vYYYY.Q.MDD \
   --certificate-identity-regexp 'https://github.com/.+/dotnet-.+/\.github/workflows/publish\.yml@refs/tags/v.+' \
   --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'
 
-# 9.  (Optional) Create a GitHub Release at the tag with the CHANGELOG
-#     entry as the body — surfaces release notes on the Releases page.
-gh release create vYYYY.S.MDD --title "vYYYY.S.MDD" \
-  --notes "$(awk '/^## \[vYYYY.S.MDD\]/,/^## \[/' CHANGELOG.md | sed '$d')"
+# 9.  Create the GitHub Release at the tag, with the CHANGELOG section from
+#     step 5 as its notes, then delete the scratch file.
+gh release create vYYYY.Q.MDD --verify-tag --title "vYYYY.Q.MDD" \
+  --notes-file release-notes.md
+rm release-notes.md
 ```
 
 ### Dry-run (no push to GHCR)
@@ -205,7 +227,7 @@ There's no automated rollback. To recover from a bad release:
 1. **Move `:latest` back to the previous good tag manually:**
    ```sh
    docker buildx imagetools create -t ghcr.io/janusmael/dotnet-autopsy-base:latest \
-     ghcr.io/janusmael/dotnet-autopsy-base:vYYYY.S.MDD-prev
+     ghcr.io/janusmael/dotnet-autopsy-base:vYYYY.Q.MDD-prev
    ```
 2. **Do not delete the bad tag** — published cosign signatures and SBOM
    attestations reference its digest. Cut a new tag with the fix instead:
@@ -219,8 +241,8 @@ There's no automated rollback. To recover from a bad release:
 | Job | What |
 |---|---|
 | `derive` | Resolves the tag + `dry_run` + whether to move `:latest`. |
-| `build-per-arch` (matrix amd64 / arm64) | Builds `common/base.dockerfile` per-arch; pushes `:vYYYY.S.MDD-{arch}`. GHA cache scoped per-arch. |
-| `manifest` (only if not dry-run) | Creates multi-arch manifest `:vYYYY.S.MDD`; moves `:latest`; cosign-signs the digest; generates + attests CycloneDX SBOM; attaches SLSA provenance. |
+| `build-per-arch` (matrix amd64 / arm64) | Builds `common/base.dockerfile` per-arch; pushes `:vYYYY.Q.MDD-{arch}`. GHA cache scoped per-arch. |
+| `manifest` (only if not dry-run) | Creates multi-arch manifest `:vYYYY.Q.MDD`; moves `:latest`; cosign-signs the digest; generates + attests CycloneDX SBOM; attaches SLSA provenance. |
 | `dry-run-summary` (only if dry-run) | Reports that nothing was pushed. |
 
 The job summary on a successful run prints the pull + verify snippets
