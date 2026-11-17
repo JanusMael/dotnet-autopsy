@@ -25,3 +25,8 @@ parity/
 
 # DO NOT exclude: the dump file (*.dump / *.dmp) or the symbols/ dir.
 # Those are the per-case inputs that get baked in.
+
+# ...except the repository docs inside symbols/, which sos/dotnet-sos.dockerfile
+# would otherwise COPY into /symbols-user/ along with the user's PDBs.
+symbols/AGENTS.md
+symbols/CLAUDE.md
