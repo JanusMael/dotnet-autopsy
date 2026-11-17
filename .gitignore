@@ -21,10 +21,12 @@ fileserver/
 parity/_bin/
 
 # Symbol cache and user PDBs — case-specific, potentially large/sensitive.
-# The symbols/ directory itself IS tracked (via symbols/.keep);
-# only its contents are excluded.
+# The symbols/ directory itself IS tracked (via symbols/.keep), with its
+# AGENTS.md and CLAUDE.md; only the user's contents are excluded.
 symbols/*
 !symbols/.keep
+!symbols/AGENTS.md
+!symbols/CLAUDE.md
 
 # .NET build artifacts — when a host accidentally runs `dotnet build`/`publish`
 # from within a project directory, MSBuild populates bin/ and obj/ alongside
