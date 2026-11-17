@@ -45,7 +45,7 @@ Drift from the plan, decided by the developer on 2026-11-16 (details in the
 |---|---|
 | Merge method | Rebase merge, done by the developer (#8, #9). |
 | `main` protection | Retuned to the family convention and applied; see Repository settings. |
-| Conventions adopted | `.gitattributes` `* text=auto eol=lf` (with a renormalization, which settles the `*.csproj` CRLF warnings) and the AGENTS.md set (root and each top-level directory, a `CLAUDE.md` of `@AGENTS.md` beside each, `.github/copilot-instructions.md`). Each lands as its own small PR after the release. Not adopted: turning merge commits off, the `release-tags` ruleset, `.github/repository.json`, per-job `permissions` and major-tag pinning, the `conventions` job. Source: `C:\c\cl\Bennewitz.Ninja.Templates` `docs/repository-conventions.md`. |
+| Conventions adopted | `.gitattributes` `* text=auto eol=lf` (done 2026-11-17; the index was already all LF, so the renormalization changed no content) and the AGENTS.md set (root and each top-level directory, a `CLAUDE.md` of `@AGENTS.md` beside each, `.github/copilot-instructions.md`). Each lands as its own small PR after the release. Not adopted: turning merge commits off, the `release-tags` ruleset, `.github/repository.json`, per-job `permissions` and major-tag pinning, the `conventions` job. Source: `C:\c\cl\Bennewitz.Ninja.Templates` `docs/repository-conventions.md`. |
 | Release | Cut after #8 and #9, with a GitHub Release page whose notes are the CHANGELOG section. The tag is pushed only on the developer's word. |
 | CalVer | `vYYYY.Q.MDD` from the UTC tag date, per `Bennewitz.Ninja.AutoVersioning` (checkout `C:\c\cl\Bennewitz.Ninja.AutoVersioning`). `v2026.2.902` should have been `v2026.3.902`; it stays, recorded in the CHANGELOG and `CONTRIBUTING.md`. |
 
@@ -106,9 +106,9 @@ Enforced; authoritative text in `CONTRIBUTING.md` § Core invariants.
 
 ## Next
 
-1. The `.gitattributes` PR (`* text=auto eol=lf`, with a renormalization).
-2. The AGENTS.md PR.
+1. The AGENTS.md PR.
 
 Branches: locally, `backup-pre-reset` is a deliberate safety branch — keep
-it. `feat/dotnet-11`, `chore/chainguard-regen-dotnet-11` and
-`release/v2026.4.1117` are merged (rebased) and gone from the remote.
+it. `feat/dotnet-11`, `chore/chainguard-regen-dotnet-11`,
+`release/v2026.4.1117` and `docs/progress-v2026.4.1117` are merged
+(rebased) and gone from the remote.
